@@ -1,0 +1,281 @@
+{
+  "name": "ssh-folders",
+  "displayName": "SSH - Folders",
+  "description": "Liste les hôtes SSH et des dossiers distants favoris. Remote-SSH gère la connexion.",
+  "version": "0.2.3",
+  "publisher": "cedric217",
+  "author": "Cédric Baertschi",
+  "license": "SEE LICENSE IN LICENSE",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "ssh",
+    "remote",
+    "folders"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "extensionKind": [
+    "ui"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sshFoldersContainer",
+          "title": "SSH - Folders",
+          "icon": "media/ssh-folders.svg"
+        }
+      ]
+    },
+    "views": {
+      "sshFoldersContainer": [
+        {
+          "id": "sshFolders",
+          "name": "SSH - Folders",
+          "icon": "media/ssh-folders.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "sshFolders",
+        "contents": "Aucun hôte trouvé dans le fichier SSH config.\n[Ouvrir le fichier SSH config](command:sshFolders.openSshConfig)",
+        "when": "sshFolders.view == byHost"
+      },
+      {
+        "view": "sshFolders",
+        "contents": "Aucun dossier favori.\n[Ajouter un dossier](command:sshFolders.addFolder)",
+        "when": "sshFolders.view == byFolder"
+      },
+      {
+        "view": "sshFolders",
+        "contents": "Aucune connexion récente.\nOuvre un hôte ou un dossier pour le voir ici.",
+        "when": "sshFolders.view == recent"
+      }
+    ],
+    "commands": [
+      {
+        "command": "sshFolders.showByFolder",
+        "title": "Afficher par dossier (A-Z)",
+        "category": "SSH - Folders",
+        "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "sshFolders.showByRecent",
+        "title": "Afficher les dernières connexions",
+        "category": "SSH - Folders",
+        "icon": "$(history)"
+      },
+      {
+        "command": "sshFolders.showByHost",
+        "title": "Afficher par hôte",
+        "category": "SSH - Folders",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "sshFolders.refresh",
+        "title": "SSH - Folders: Actualiser",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "sshFolders.addFolder",
+        "title": "SSH - Folders: Ajouter un dossier",
+        "icon": "$(add)"
+      },
+      {
+        "command": "sshFolders.renameFolder",
+        "title": "SSH - Folders: Renommer le dossier"
+      },
+      {
+        "command": "sshFolders.removeFolder",
+        "title": "SSH - Folders: Supprimer le dossier"
+      },
+      {
+        "command": "sshFolders.removeRecent",
+        "title": "Retirer des derniers accès",
+        "category": "SSH - Folders",
+        "icon": "$(remove)"
+      },
+      {
+        "command": "sshFolders.openFoldersConfig",
+        "title": "SSH - Folders: Ouvrir la config des dossiers",
+        "icon": "$(json)"
+      },
+      {
+        "command": "sshFolders.openSshConfig",
+        "title": "SSH - Folders: Ouvrir le fichier SSH config"
+      },
+      {
+        "command": "sshFolders.openInCurrentWindow",
+        "title": "Ouvrir dans la même fenêtre",
+        "category": "SSH - Folders",
+        "icon": "$(window)"
+      },
+      {
+        "command": "sshFolders.openInNewWindow",
+        "title": "Ouvrir dans une nouvelle fenêtre",
+        "category": "SSH - Folders",
+        "icon": "$(empty-window)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "sshFolders.showByFolder",
+          "when": "view == sshFolders && sshFolders.view == byHost",
+          "group": "navigation@0"
+        },
+        {
+          "command": "sshFolders.showByRecent",
+          "when": "view == sshFolders && sshFolders.view == byFolder",
+          "group": "navigation@0"
+        },
+        {
+          "command": "sshFolders.showByHost",
+          "when": "view == sshFolders && sshFolders.view == recent",
+          "group": "navigation@0"
+        },
+        {
+          "command": "sshFolders.refresh",
+          "when": "view == sshFolders",
+          "group": "navigation@1"
+        },
+        {
+          "command": "sshFolders.addFolder",
+          "when": "view == sshFolders",
+          "group": "navigation@2"
+        },
+        {
+          "command": "sshFolders.openFoldersConfig",
+          "when": "view == sshFolders",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "sshFolders.openInCurrentWindow",
+          "when": "view == sshFolders && (viewItem == host || viewItem == recentHost)",
+          "group": "inline@1"
+        },
+        {
+          "command": "sshFolders.openInNewWindow",
+          "when": "view == sshFolders && (viewItem == host || viewItem == recentHost)",
+          "group": "inline@2"
+        },
+        {
+          "command": "sshFolders.addFolder",
+          "when": "view == sshFolders && viewItem == host",
+          "group": "inline@3"
+        },
+        {
+          "command": "sshFolders.openInCurrentWindow",
+          "when": "view == sshFolders && (viewItem == folder || viewItem == recentFolder)",
+          "group": "inline@1"
+        },
+        {
+          "command": "sshFolders.openInNewWindow",
+          "when": "view == sshFolders && (viewItem == folder || viewItem == recentFolder)",
+          "group": "inline@2"
+        },
+        {
+          "command": "sshFolders.removeRecent",
+          "when": "view == sshFolders && (viewItem == recentHost || viewItem == recentFolder)",
+          "group": "inline@9"
+        },
+        {
+          "command": "sshFolders.openInCurrentWindow",
+          "when": "view == sshFolders && (viewItem == host || viewItem == folder || viewItem == recentHost || viewItem == recentFolder)",
+          "group": "0_connect@1"
+        },
+        {
+          "command": "sshFolders.openInNewWindow",
+          "when": "view == sshFolders && (viewItem == host || viewItem == folder || viewItem == recentHost || viewItem == recentFolder)",
+          "group": "0_connect@2"
+        },
+        {
+          "command": "sshFolders.renameFolder",
+          "when": "view == sshFolders && viewItem == folder",
+          "group": "1_edit"
+        },
+        {
+          "command": "sshFolders.removeFolder",
+          "when": "view == sshFolders && viewItem == folder",
+          "group": "1_edit"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "sshFolders.openInCurrentWindow",
+          "when": "false"
+        },
+        {
+          "command": "sshFolders.openInNewWindow",
+          "when": "false"
+        },
+        {
+          "command": "sshFolders.removeRecent",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "SSH - Folders",
+      "properties": {
+        "sshFolders.configPath": {
+          "type": "string",
+          "default": "",
+          "description": "Chemin du fichier JSON des dossiers distants. Vide = ~/.ssh/extensions/ssh-folders.json"
+        },
+        "sshFolders.view": {
+          "type": "string",
+          "enum": [
+            "byHost",
+            "byFolder",
+            "recent"
+          ],
+          "enumDescriptions": [
+            "Grouper les dossiers sous chaque hôte SSH",
+            "Liste A-Z de tous les dossiers, regroupés par nom, tous hôtes confondus",
+            "Les 20 derniers accès, du plus récent au plus ancien"
+          ],
+          "default": "byHost",
+          "description": "Mode d'affichage de la vue SSH - Folders"
+        }
+      }
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": [
+          "ssh-folders.json",
+          "**/ssh-folders.json"
+        ],
+        "url": "./schemas/remote-folders.schema.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package --allow-missing-repository",
+    "publish:vscode": "vsce publish --allow-missing-repository",
+    "publish:openvsx": "npx ovsx publish ssh-folders-$(node -p \"require('./package.json').version\").vsix"
+  },
+  "dependencies": {
+    "ssh-config": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.6.0",
+    "typescript": "^6.0.3"
+  }
+}

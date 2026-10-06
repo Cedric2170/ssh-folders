@@ -1,0 +1,22 @@
+# Complète .gitattributes : encodage UTF-8 et style pour les éditeurs compatibles.
+# https://editorconfig.org
+
+# Ce fichier est la racine de la configuration EditorConfig.
+root = true
+
+# Configuration pour tous les fichiers
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{yml,yaml,json,ts,js}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_style = tab

@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SSH - Folders",
+  "description": "Dossiers distants favoris, indexés par alias Host du fichier SSH config.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["folders"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Paramètres globaux, valables pour tous les hôtes. On peut y ajouter des clés plus tard.",
+      "properties": {
+        "DefaultFolder": {
+          "type": "string",
+          "pattern": "^/",
+          "description": "Chemin POSIX ouvert par défaut à la connexion d'un hôte (pas de ~)."
+        },
+        "RecentLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "description": "Nombre de derniers accès affichés dans la vue correspondante (1 à 100, 20 par défaut)."
+        }
+      }
+    },
+    "folders": {
+      "type": "object",
+      "description": "Clé = alias Host SSH. Valeur = liste de dossiers distants.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path"],
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Libellé affiché. Si omis, le nom du dossier est utilisé."
+            },
+            "path": {
+              "type": "string",
+              "pattern": "^/",
+              "description": "Chemin POSIX absolu sur l'hôte distant (pas de ~)."
+            }
+          }
+        }
+      }
+    }
+  }
+}

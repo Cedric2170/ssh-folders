@@ -1,0 +1,41 @@
+# IDE / éditeur (préférences locales)
+.vscode/settings.json
+
+# Secrets et variables d'environnement
+.env
+.env.*
+!.env.example
+.vault_pass
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build / journaux
+out/
+dist/
+build/
+*.log
+*.vsix
+
+# Backup / Temporaires
+backup/
+temp/
+tmp/
+*.bck
+*.bak
+*.old
+*/old/
+*old*/
