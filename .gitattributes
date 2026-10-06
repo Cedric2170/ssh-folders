@@ -1,0 +1,54 @@
+# Normalisation des fins de ligne : LF dans le dépôt et à l'extraction.
+* text=auto eol=lf
+
+# Config / IaC
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.j2    text eol=lf
+*.cfg   text eol=lf
+*.ini   text eol=lf
+*.toml  text eol=lf
+
+# Scripts et code
+*.sh    text eol=lf
+*.py    text eol=lf
+*.ps1   text eol=lf
+*.bat   text eol=lf
+*.cmd   text eol=lf
+*.js    text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.jsx   text eol=lf
+*.go    text eol=lf
+*.rs    text eol=lf
+
+# Docs et métadonnées
+*.md    text eol=lf
+*.txt   text eol=lf
+*.json  text eol=lf
+*.xml   text eol=lf
+*.svg   text eol=lf
+
+# Certificats / clés (PEM : texte base64, pas binaire)
+*.crt   text eol=lf
+*.pem   text eol=lf
+*.pub   text eol=lf
+*.key   text eol=lf
+
+# Fichiers réellement binaires (pas de conversion EOL)
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.tar   binary
+*.woff  binary
+*.woff2 binary
+*.vsix  binary
+
+.gitattributes text eol=lf
+.gitignore     text eol=lf
+.editorconfig  text eol=lf

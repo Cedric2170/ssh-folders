@@ -1,0 +1,24 @@
+# Dossiers défauts des projets
+backup/
+temp/
+tmp/
+
+# Secrets (ne pas indexer pour l'agent)
+.env
+.env.*
+.vault_pass
+*.pem
+*.key
+
+# Dépendances et caches volumineux
+node_modules/
+!node_modules/@types/
+.venv/
+venv/
+__pycache__/
+out/
+dist/
+build/
+
+# Historique Git
+#.git/
