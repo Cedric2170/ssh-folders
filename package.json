@@ -2,10 +2,18 @@
   "name": "ssh-folders",
   "displayName": "SSH - Folders",
   "description": "Liste les hôtes SSH et des dossiers distants favoris. Remote-SSH gère la connexion.",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "publisher": "cedric217",
   "author": "Cédric Baertschi",
   "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cedric2170/ssh-folders.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Cedric2170/ssh-folders/issues"
+  },
+  "homepage": "https://github.com/Cedric2170/ssh-folders#readme",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.85.0"
@@ -265,8 +273,8 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package --allow-missing-repository",
-    "publish:vscode": "vsce publish --allow-missing-repository",
+    "package": "vsce package",
+    "publish:vscode": "vsce publish",
     "publish:openvsx": "npx ovsx publish ssh-folders-$(node -p \"require('./package.json').version\").vsix"
   },
   "dependencies": {
