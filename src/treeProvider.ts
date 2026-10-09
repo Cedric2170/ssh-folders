@@ -18,6 +18,7 @@ import {
   type RecentAccess,
 } from "./recentAccess";
 import { cachedHostAliases } from "./sshConfig";
+import { isDevMode } from "./devMode";
 
 export type OpenTarget = {
   kind: "host" | "folder";
@@ -127,7 +128,9 @@ export type SshFoldersItem = HostItem | FolderItem | FolderGroupItem | StatusIte
 
 export type ViewMode = "byHost" | "byFolder" | "recent";
 
-export function getViewMode(): ViewMode {
+let heldViewMode: ViewMode | undefined;
+
+function configuredViewMode(): ViewMode {
   const value = vscode.workspace
     .getConfiguration("sshFolders")
     .get<string>("view");
@@ -137,14 +140,32 @@ export function getViewMode(): ViewMode {
   return "byHost";
 }
 
+/** Garde le mode d'affichage en mémoire pour ne pas écrire sshFolders.view. */
+export function holdViewMode(): void {
+  heldViewMode = configuredViewMode();
+}
+
+export function releaseViewMode(): void {
+  heldViewMode = undefined;
+}
+
+export function rememberViewMode(mode: ViewMode): void {
+  heldViewMode = mode;
+}
+
+export function getViewMode(): ViewMode {
+  return heldViewMode ?? configuredViewMode();
+}
+
 export function viewTitle(mode: ViewMode): string {
+  const suffix = isDevMode() ? " · dev" : "";
   if (mode === "byFolder") {
-    return "Dossiers A-Z";
+    return `Dossiers A-Z${suffix}`;
   }
   if (mode === "recent") {
-    return "Derniers accès";
+    return `Derniers accès${suffix}`;
   }
-  return "SSH - Folders";
+  return `SSH - Folders${suffix}`;
 }
 
 function toFlatFolderItem(ref: AzFolderRef): FolderItem {

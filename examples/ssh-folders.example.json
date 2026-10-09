@@ -1,0 +1,32 @@
+{
+  "$schema": "../schemas/remote-folders.schema.json",
+  "defaults": {
+    "DefaultFolder": "/opt/docker/projects",
+    "RecentLimit": 20
+  },
+  "folders": {
+    "demo-docker": [
+      {
+        "path": "/opt/docker/projects",
+        "label": "Projects"
+      },
+      {
+        "path": "/opt/docker/projects/grafana",
+        "label": "Grafana"
+      },
+      {
+        "path": "/opt/docker/projects/guacamole",
+        "label": "Guacamole"
+      }
+    ],
+    "demo-web": [
+      {
+        "path": "/opt/docker/projects/census-agent",
+        "label": "Census-agent"
+      },
+      {
+        "path": "/etc/nginx"
+      }
+    ]
+  }
+}

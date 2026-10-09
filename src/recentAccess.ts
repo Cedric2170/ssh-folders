@@ -12,12 +12,17 @@ export type RecentAccess = {
 
 let memento: vscode.Memento | undefined;
 let onChange: (() => void) | undefined;
+let memoryOnly = false;
+let memoryItems: RecentAccess[] = [];
 
 export function initRecentAccess(
   state: vscode.Memento,
-  listener?: () => void
+  listener?: () => void,
+  memoryOnlyMode = false
 ): void {
-  memento = state;
+  memoryOnly = memoryOnlyMode;
+  memoryItems = [];
+  memento = memoryOnlyMode ? undefined : state;
   onChange = listener;
 }
 
@@ -49,7 +54,9 @@ function isRecentAccess(value: unknown): value is RecentAccess {
 }
 
 function storedAccess(): RecentAccess[] {
-  const raw = memento?.get<unknown>(STATE_KEY) ?? [];
+  const raw = memoryOnly
+    ? memoryItems
+    : (memento?.get<unknown>(STATE_KEY) ?? []);
   if (!Array.isArray(raw)) {
     return [];
   }
@@ -83,7 +90,15 @@ export async function recordAccess(
     },
     ...storedAccess().filter((item) => accessKey(item) !== accessKey(entry)),
   ].slice(0, MAX_RECENT_LIMIT);
-  await memento?.update(STATE_KEY, next);
+  await persistAccess(next);
+}
+
+async function persistAccess(next: RecentAccess[]): Promise<void> {
+  if (memoryOnly) {
+    memoryItems = next;
+  } else {
+    await memento?.update(STATE_KEY, next);
+  }
   onChange?.();
 }
 
@@ -93,8 +108,7 @@ export async function removeAccess(
   const next = storedAccess().filter(
     (item) => accessKey(item) !== accessKey(entry)
   );
-  await memento?.update(STATE_KEY, next);
-  onChange?.();
+  await persistAccess(next);
 }
 
 export function formatRelativeAccess(at: number, now = Date.now()): string {

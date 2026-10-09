@@ -3,6 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import SSHConfig from "ssh-config";
+import { devSshConfigPath, isDevMode } from "./devMode";
 
 function expandHome(filePath: string): string {
   if (filePath === "~") {
@@ -15,6 +16,9 @@ function expandHome(filePath: string): string {
 }
 
 export function getSshConfigPath(): string {
+  if (isDevMode()) {
+    return devSshConfigPath();
+  }
   const custom = vscode.workspace
     .getConfiguration("remote.SSH")
     .get<string>("configFile");
@@ -190,6 +194,11 @@ let aliasesCache: AliasesCache | undefined;
 let reloadInFlight: Promise<string[]> | undefined;
 
 export function initHostCache(state: vscode.Memento): void {
+  if (isDevMode()) {
+    hostMemento = undefined;
+    aliasesCache = undefined;
+    return;
+  }
   hostMemento = state;
   const raw = state.get<PersistedHostCache>(HOST_STATE_KEY);
   const configPath = getSshConfigPath();
@@ -211,7 +220,7 @@ export function initHostCache(state: vscode.Memento): void {
 }
 
 function persistHostCache(): void {
-  if (!hostMemento || !aliasesCache) {
+  if (isDevMode() || !hostMemento || !aliasesCache) {
     return;
   }
   void hostMemento.update(HOST_STATE_KEY, {

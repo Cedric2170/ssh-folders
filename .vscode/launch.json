@@ -9,6 +9,9 @@
         "--extensionDevelopmentPath=${workspaceFolder}",
         "--disable-extensions"
       ],
+      "env": {
+        "SSH_FOLDERS_DEV": "1"
+      },
       "outFiles": [
         "${workspaceFolder}/out/**/*.js"
       ],
@@ -22,6 +25,25 @@
         "--extensionDevelopmentPath=${workspaceFolder}",
         "--disable-extensions"
       ],
+      "env": {
+        "SSH_FOLDERS_DEV": "1"
+      },
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js"
+      ],
+      "preLaunchTask": "compile"
+    },
+    {
+      "name": "Run Extension (config réelle)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--disable-extensions"
+      ],
+      "env": {
+        "SSH_FOLDERS_DEV": "0"
+      },
       "outFiles": [
         "${workspaceFolder}/out/**/*.js"
       ],

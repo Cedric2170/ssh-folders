@@ -28,6 +28,8 @@ out/
 dist/
 build/
 *.log
+# Paquets locaux (npm run package → vsix/)
+vsix/*.vsix
 *.vsix
 
 # Backup / Temporaires
@@ -39,3 +41,4 @@ tmp/
 *.old
 */old/
 *old*/
+todo.md

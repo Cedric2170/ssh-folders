@@ -27,11 +27,15 @@ import {
   HostItem,
   SshFoldersTreeProvider,
   getViewMode,
+  holdViewMode,
+  releaseViewMode,
+  rememberViewMode,
   viewTitle,
   type OpenTarget,
   type ViewMode,
 } from "./treeProvider";
 import { initRecentAccess, recordAccess, removeAccess } from "./recentAccess";
+import { initDevMode, isDevMode, prepareDevSandbox } from "./devMode";
 
 function isOpenTarget(value: unknown): value is OpenTarget {
   if (!value || typeof value !== "object") {
@@ -243,6 +247,21 @@ async function activateOnce(
     }
   };
 
+  initDevMode(context);
+  if (isDevMode()) {
+    try {
+      await prepareDevSandbox(context);
+    } catch (error) {
+      void vscode.window.showErrorMessage(
+        `SSH - Folders : mode dev impossible (${(error as Error).message}). Les fichiers personnels ne sont pas utilisés.`
+      );
+    }
+    invalidateFoldersCache();
+    holdViewMode();
+  } else {
+    releaseViewMode();
+  }
+
   initHostCache(context.globalState);
   const initialMode = getViewMode();
   await vscode.commands.executeCommand(
@@ -257,7 +276,11 @@ async function activateOnce(
     showCollapseAll: true,
   });
   treeView.title = viewTitle(initialMode);
-  initRecentAccess(context.globalState, () => treeProvider.refresh());
+  initRecentAccess(
+    context.globalState,
+    () => treeProvider.refresh(),
+    isDevMode()
+  );
 
   const applyViewMode = (mode: ViewMode): void => {
     void vscode.commands.executeCommand("setContext", "sshFolders.view", mode);
@@ -281,14 +304,25 @@ async function activateOnce(
     }
   });
 
-  void Promise.all([
-    reloadHostAliases(),
-    readFoldersFile().catch(() => undefined),
-  ]).then(() => {
+  void (async () => {
+    try {
+      await ensureFoldersFile();
+    } catch {
+      // Copie impossible : la vue s'affiche avec les hôtes SSH déjà connus.
+    }
+    await Promise.all([
+      reloadHostAliases(),
+      readFoldersFile().catch(() => undefined),
+    ]);
     treeProvider.markHostsReady();
-  });
+  })();
 
   async function setViewMode(mode: ViewMode): Promise<void> {
+    if (isDevMode()) {
+      rememberViewMode(mode);
+      applyViewMode(mode);
+      return;
+    }
     await vscode.workspace
       .getConfiguration("sshFolders")
       .update("view", mode, vscode.ConfigurationTarget.Global);

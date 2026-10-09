@@ -273,9 +273,9 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package",
-    "publish:vscode": "vsce publish",
-    "publish:openvsx": "npx ovsx publish ssh-folders-$(node -p \"require('./package.json').version\").vsix"
+    "package": "mkdir -p vsix && vsce package -o vsix",
+    "publish:vscode": "npm run package && vsce publish -i vsix/ssh-folders-$(node -p \"require('./package.json').version\").vsix",
+    "publish:openvsx": "npx ovsx publish vsix/ssh-folders-$(node -p \"require('./package.json').version\").vsix"
   },
   "dependencies": {
     "ssh-config": "^5.2.1"

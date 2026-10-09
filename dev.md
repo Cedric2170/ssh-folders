@@ -17,10 +17,11 @@ Ce document reste local : il est exclu du paquet.
    npm run package
    ~~~
 
-2. Installer le fichier `.vsix` généré (exemple : `ssh-folders-0.2.3.vsix`) :
+2. Installer le `.vsix` généré dans le dossier [`vsix/`](vsix/) (exemple :
+   `vsix/ssh-folders-0.2.4.vsix`) :
 
    ~~~bash
-   cursor --install-extension ssh-folders-0.2.3.vsix
+   cursor --install-extension vsix/ssh-folders-0.2.4.vsix
    ~~~
 
    Ou dans Cursor : palette de commandes (`Cmd+Shift+P`) puis
@@ -30,7 +31,10 @@ Ce document reste local : il est exclu du paquet.
    apparaît dans la barre d'activité, sans passer par F5.
 
 Pour mettre à jour après un changement de code : `npm run package`, puis
-réinstaller le nouveau `.vsix`.
+réinstaller le nouveau fichier sous `vsix/`.
+
+Les paquets `.vsix` (historique et futurs builds) restent dans `vsix/`, pas à
+la racine du dépôt.
 
 ## Utilisation
 
@@ -111,10 +115,11 @@ npm run publish:vscode
 npm run publish:openvsx
 ~~~
 
-`publish:vscode` envoie la version déclarée dans `package.json`.
-`publish:openvsx` envoie le `.vsix` déjà construit
-(`ssh-folders-<version>.vsix`). Le jeton Open VSX vient de `OVSX_PAT`
-ou de `npx ovsx login cedric217`.
+`npm run package` écrit `vsix/ssh-folders-<version>.vsix`. `publish:vscode`
+repackage si besoin puis publie ce fichier. `publish:openvsx` envoie le même
+`.vsix`. Le jeton Open VSX vient de `OVSX_PAT` ou de `npx ovsx login cedric217`.
+
+Upload manuel sur le Marketplace : glisser le `.vsix` depuis `vsix/`.
 
 Chaque registre refuse une version déjà publiée. Monter `version` avant
 une mise à jour.
@@ -127,10 +132,27 @@ F5 ouvre une **seconde** fenêtre Cursor (Extension Development Host).
 1. Ouvre le dossier `vsCodeSSH` dans Cursor.
 2. `npm install` puis `npm run compile`.
 3. Exécuter et déboguer (`Cmd+Shift+D`), configuration **Run Extension**, F5.
-   Les deux configs lancent l’Extension Development Host avec `--disable-extensions`
-   (seule l’extension du workspace est chargée). **Run Extension (isolé)** est
-   identique ; garde-la si tu préfères ce libellé.
+   Les configs lancent l’Extension Development Host avec `--disable-extensions`
+   (seule l’extension du workspace est chargée). **Run Extension** et
+   **Run Extension (isolé)** posent `SSH_FOLDERS_DEV=1`.
 4. Dans la fenêtre Extension Development Host, ouvre **SSH - Folders**.
+   Le titre se termine par `· dev` et la vue montre les hôtes d'exemple.
+
+### Fichiers d'exemple
+
+`SSH_FOLDERS_DEV=1` n'est honoré que dans l'hôte de développement (F5).
+Un `.vsix` installé est en mode Production et ignore cette variable, même
+si elle est définie dans l'environnement.
+
+La vue lit une copie des fichiers `examples/`, recréée à chaque lancement
+dans le stockage de l'extension. `~/.ssh/config`,
+`~/.ssh/extensions/ssh-folders.json`, le schéma à côté, l'historique des
+accès et le réglage `sshFolders.view` ne sont pas écrits. Pour revoir ces
+fichiers depuis F5, lance **Run Extension (config réelle)** (`SSH_FOLDERS_DEV=0`).
+Le VSIX installé les affiche toujours.
+
+Ajouter ou supprimer un dossier en mode dev modifie seulement la copie,
+effacée au prochain F5.
 
 Pour recompiler après une modification : `npm run compile`, puis relancer F5.
 

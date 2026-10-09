@@ -1,0 +1,10 @@
+# Modèle de démonstration, à copier à la main si besoin.
+# L'extension ne modifie pas ~/.ssh/config.
+
+Host demo-docker
+  HostName demo-docker.example.com
+  User demo
+
+Host demo-web
+  HostName demo-web.example.com
+  User demo
