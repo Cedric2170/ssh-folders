@@ -41,6 +41,7 @@ L'historique est gardé par l'éditeur. Retirer une entrée laisse le favori en 
 - La vue derniers accès liste les connexions récentes. Retirer une entrée n'efface pas le favori.
 - Un bouton en haut de l'arbre passe d'une vue à l'autre.
 - Un dossier par défaut s'ouvre au clic sur l'hôte, à la place d'une fenêtre distante vide.
+- La connexion et le dossier ouverts, y compris dans une autre fenêtre, prennent la couleur `defaults.ActiveColor` (vert par défaut).
 
 ### Installation
 
@@ -67,7 +68,8 @@ La clé (`demo-docker` dans l'exemple) est l'alias de la ligne `Host` dans `~/.s
   "$schema": "./remote-folders.schema.json",
   "defaults": {
     "DefaultFolder": "/opt/docker/projects",
-    "RecentLimit": 20
+    "RecentLimit": 20,
+    "ActiveColor": "green"
   },
   "folders": {
     "demo-docker": [
@@ -117,6 +119,8 @@ Le chemin est POSIX et absolu (`/...`).
 
 `defaults.RecentLimit` fixe la taille de la vue derniers accès (20 par défaut, de 1 à 100). L'historique est gardé par l'éditeur, pas dans ce JSON.
 
+`defaults.ActiveColor` colorie cette connexion. Vert par défaut (`green`). Autres noms : `blue`, `orange`, `red`, `purple`, `yellow`. Un code hexadécimal est pris tel quel, par exemple `#7c3aed`.
+
 Autre emplacement du fichier de favoris : le réglage `sshFolders.configPath`.
 
 ## English
@@ -134,6 +138,7 @@ The pictures at the top follow `examples/ssh-folders.example.json`. Hosts `demo-
 - The recent view lists the latest connections. Removing an entry does not delete the favorite.
 - A button at the top of the tree switches from one view to the next.
 - A default folder opens when you click a host, instead of an empty remote window.
+- The connection and folder that are open, including in another window, use the color from `defaults.ActiveColor` (green by default).
 
 ### Installation
 
@@ -160,7 +165,8 @@ The key (`demo-docker` in the example) is the `Host` alias from `~/.ssh/config`,
   "$schema": "./remote-folders.schema.json",
   "defaults": {
     "DefaultFolder": "/opt/docker/projects",
-    "RecentLimit": 20
+    "RecentLimit": 20,
+    "ActiveColor": "green"
   },
   "folders": {
     "demo-docker": [
@@ -209,5 +215,7 @@ The path is POSIX and absolute (`/...`).
 `defaults.DefaultFolder` applies to every host. The + button prefills the path with that value and suggests the name from the part that follows this folder. Example: `/opt/docker/projects/grafana` becomes `grafana`.
 
 `defaults.RecentLimit` sets the size of the recent view (20 by default, from 1 to 100). History is stored by the editor, not in this JSON file.
+
+`defaults.ActiveColor` colors that connection. Green by default (`green`). Other names: `blue`, `orange`, `red`, `purple`, `yellow`. A hexadecimal code is used as-is, for example `#7c3aed`.
 
 To store favorites elsewhere, set `sshFolders.configPath`.

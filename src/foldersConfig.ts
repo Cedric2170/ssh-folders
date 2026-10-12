@@ -13,9 +13,39 @@ export interface FolderEntry {
 export const DEFAULT_RECENT_LIMIT = 20;
 export const MAX_RECENT_LIMIT = 100;
 
+export const ACTIVE_COLOR_NAMES = [
+  "green",
+  "blue",
+  "orange",
+  "red",
+  "purple",
+  "yellow",
+] as const;
+
+export type ActiveColorName = (typeof ACTIVE_COLOR_NAMES)[number];
+
+export type ActiveColor =
+  | { kind: "name"; name: ActiveColorName }
+  | { kind: "hex"; hex: string };
+
+const ACTIVE_COLOR_ALIASES: Record<string, ActiveColorName> = {
+  green: "green",
+  vert: "green",
+  blue: "blue",
+  bleu: "blue",
+  orange: "orange",
+  red: "red",
+  rouge: "red",
+  purple: "purple",
+  violet: "purple",
+  yellow: "yellow",
+  jaune: "yellow",
+};
+
 export interface FolderDefaults {
   DefaultFolder?: string;
   RecentLimit?: number;
+  ActiveColor?: string;
   [key: string]: unknown;
 }
 
@@ -44,13 +74,14 @@ async function copySchemaNextToConfig(configPath: string): Promise<void> {
   await fs.copyFile(bundledSchemaPath(), dest);
 }
 
+/** Recopie le schéma, y compris s'il existe déjà, pour exposer les nouvelles clés. */
 async function copySchemaIfAbsent(configPath: string): Promise<void> {
   if (isDevMode()) {
     return;
   }
   const dest = path.join(path.dirname(configPath), "remote-folders.schema.json");
   try {
-    await fs.copyFile(bundledSchemaPath(), dest, fs.constants.COPYFILE_EXCL);
+    await fs.copyFile(bundledSchemaPath(), dest);
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     if (err.code === "EEXIST" || err.code === "ENOENT") {
@@ -162,7 +193,50 @@ function normalizeDefaults(raw: unknown): FolderDefaults | undefined {
   } else {
     delete defaults.RecentLimit;
   }
+  if (typeof rec.ActiveColor === "string" && parseActiveColor(rec.ActiveColor)) {
+    defaults.ActiveColor = rec.ActiveColor.trim();
+  } else {
+    delete defaults.ActiveColor;
+  }
   return Object.keys(defaults).length > 0 ? defaults : undefined;
+}
+
+function normalizeHex(value: string): string | undefined {
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(value);
+  if (!match) {
+    return undefined;
+  }
+  const body = match[1];
+  if (body.length === 3) {
+    return `#${body[0]}${body[0]}${body[1]}${body[1]}${body[2]}${body[2]}`;
+  }
+  return `#${body}`;
+}
+
+export function parseActiveColor(raw: unknown): ActiveColor | undefined {
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const text = raw.trim().toLowerCase();
+  const name = ACTIVE_COLOR_ALIASES[text];
+  if (name) {
+    return { kind: "name", name };
+  }
+  const hex = normalizeHex(text);
+  if (!hex) {
+    return undefined;
+  }
+  return { kind: "hex", hex };
+}
+
+/** Vert si la clé est absente ou illisible. */
+export function activeColorOf(data: FoldersFile | undefined): ActiveColor {
+  return (
+    parseActiveColor(data?.defaults?.ActiveColor) ?? {
+      kind: "name",
+      name: "green",
+    }
+  );
 }
 
 function normalizeFile(raw: unknown): FoldersFile {

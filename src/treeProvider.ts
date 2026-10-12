@@ -22,10 +22,39 @@ import {
   isActiveRemoteFolder,
   isActiveSshHost,
 } from "./sshConfig";
+import { activeChartColor, activeHex, coloredIconUri } from "./activeColor";
+import { isFolderInOpenWindow, isHostInOpenWindow } from "./openWindows";
 import { isDevMode } from "./devMode";
 
 const ACTIVE_SCHEME = "ssh-folders-active";
-const activeColor = new vscode.ThemeColor("sshFolders.activeForeground");
+const activeDecorationEmitter = new vscode.EventEmitter<
+  vscode.Uri | vscode.Uri[] | undefined
+>();
+
+function refreshActiveDecorations(): void {
+  activeDecorationEmitter.fire(undefined);
+}
+
+function hostIsActive(alias: string): boolean {
+  return isActiveSshHost(alias) || isHostInOpenWindow(alias);
+}
+
+function folderIsActive(alias: string, folderPath: string): boolean {
+  return (
+    isActiveRemoteFolder(alias, folderPath) ||
+    isFolderInOpenWindow(alias, folderPath)
+  );
+}
+
+function activeIcon(
+  iconId: string,
+  active: boolean
+): vscode.ThemeIcon | vscode.Uri {
+  if (!active) {
+    return new vscode.ThemeIcon(iconId);
+  }
+  return coloredIconUri(iconId, activeHex());
+}
 
 function activeResource(id: string): vscode.Uri {
   return vscode.Uri.from({
@@ -38,13 +67,15 @@ function activeResource(id: string): vscode.Uri {
 export class ActiveItemDecorationProvider
   implements vscode.FileDecorationProvider
 {
+  readonly onDidChangeFileDecorations = activeDecorationEmitter.event;
+
   provideFileDecoration(
     uri: vscode.Uri
   ): vscode.FileDecoration | undefined {
     if (uri.scheme !== ACTIVE_SCHEME) {
       return undefined;
     }
-    return { color: activeColor };
+    return { color: activeChartColor() };
   }
 }
 
@@ -65,8 +96,8 @@ export class HostItem extends vscode.TreeItem {
     super(alias, vscode.TreeItemCollapsibleState.Collapsed);
     this.contextValue = options.recent ? "recentHost" : "host";
     this.id = options.recent ? `recent:host:${alias}` : `host:${alias}`;
-    const active = isActiveSshHost(alias);
-    this.iconPath = new vscode.ThemeIcon("server", active ? activeColor : undefined);
+    const active = hostIsActive(alias);
+    this.iconPath = activeIcon("server", active);
     this.tooltip = options.tooltip ?? alias;
     if (active) {
       this.resourceUri = activeResource(this.id);
@@ -112,14 +143,11 @@ export class FolderItem extends vscode.TreeItem {
     );
     this.contextValue = options.recent ? "recentFolder" : "folder";
     this.path = entry.path;
-    this.active = isActiveRemoteFolder(alias, entry.path);
+    this.active = folderIsActive(alias, entry.path);
     this.id = options.recent
       ? `recent:folder:${alias}:${entry.path}`
       : `folder:${alias}:${entry.path}`;
-    this.iconPath = new vscode.ThemeIcon(
-      "symbol-folder",
-      this.active ? activeColor : undefined
-    );
+    this.iconPath = activeIcon("symbol-folder", this.active);
     this.command = {
       command: "sshFolders.openInNewWindow",
       title: "Ouvrir dans une nouvelle fenêtre",
@@ -160,7 +188,7 @@ export class FolderGroupItem extends vscode.TreeItem {
   ) {
     super(groupName, vscode.TreeItemCollapsibleState.Collapsed);
     this.id = `group:${stem}`;
-    this.iconPath = new vscode.ThemeIcon("layers", active ? activeColor : undefined);
+    this.iconPath = activeIcon("layers", active);
     this.tooltip = active ? `${groupName}\nDossier actif` : groupName;
     if (active) {
       this.resourceUri = activeResource(this.id);
@@ -309,6 +337,7 @@ export class SshFoldersTreeProvider
   }
 
   refresh(): void {
+    refreshActiveDecorations();
     this.onDidChangeTreeDataEmitter.fire(undefined);
   }
 

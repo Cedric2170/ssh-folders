@@ -35,6 +35,7 @@ import {
   type OpenTarget,
   type ViewMode,
 } from "./treeProvider";
+import { watchOpenWindows } from "./openWindows";
 import { initRecentAccess, recordAccess, removeAccess } from "./recentAccess";
 import { initDevMode, isDevMode, prepareDevSandbox } from "./devMode";
 
@@ -433,6 +434,10 @@ async function activateOnce(
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       treeProvider.refresh();
     }),
+    vscode.window.onDidChangeActiveColorTheme(() => {
+      treeProvider.refresh();
+    }),
+    watchOpenWindows(context, () => treeProvider.refresh()),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("sshFolders.view")) {
         refresh();
