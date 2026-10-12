@@ -55,7 +55,7 @@ Les favoris sont dans `~/.ssh/extensions/ssh-folders.json`. Si le schéma `remot
 
 Au premier lancement, si ce JSON n'existe pas encore, l'extension le crée à partir de `examples/ssh-folders.example.json`. Dans le dépôt, cet exemple pointe vers `../schemas/remote-folders.schema.json` pour que l'éditeur trouve le schéma. Le fichier installé reçoit `"$schema": "./remote-folders.schema.json"`, à côté de la copie du schéma. Un fichier déjà présent reste tel quel.
 
-L'exemple ne contient que les réglages déjà en place : `DefaultFolder`, `RecentLimit`, `path` et `label`. Il sera complété au fil des fonctions ajoutées.
+L'exemple ne contient que les réglages déjà en place : `DefaultFolder`, `RecentLimit`, `ActiveColor`, `path` et `label`. Il sera complété au fil des fonctions ajoutées.
 
 Les hôtes `demo-docker` et `demo-web` sont fictifs. Les adresses `203.0.113.10` et `203.0.113.20` servent uniquement à la documentation. Pour les voir dans la vue par hôte, copie à la main les blocs de `examples/ssh-config.example` dans ton fichier SSH config. L'extension laisse ce fichier intact. La vue A-Z affiche ces dossiers dès que le JSON d'exemple est en place, car elle lit les favoris directement.
 
@@ -152,7 +152,7 @@ Favorites live in `~/.ssh/extensions/ssh-folders.json`. If `remote-folders.schem
 
 On first launch, if that JSON file does not exist yet, the extension creates it from `examples/ssh-folders.example.json`. In the repository, that example points at `../schemas/remote-folders.schema.json` so the editor can find the schema. The installed file gets `"$schema": "./remote-folders.schema.json"`, next to the copied schema. A file that is already there stays as it is.
 
-The example only includes settings that already exist: `DefaultFolder`, `RecentLimit`, `path`, and `label`. It will grow as new features land.
+The example only includes settings that already exist: `DefaultFolder`, `RecentLimit`, `ActiveColor`, `path`, and `label`. It will grow as new features land.
 
 Hosts `demo-docker` and `demo-web` are fictional. Addresses `203.0.113.10` and `203.0.113.20` are documentation addresses only. To see them in the by-host view, paste the blocks from `examples/ssh-config.example` into your SSH config yourself. The extension leaves that file untouched. The A-Z view still lists these folders once the example JSON is in place, because that view reads the favorites directly.
 

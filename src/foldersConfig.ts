@@ -74,14 +74,14 @@ async function copySchemaNextToConfig(configPath: string): Promise<void> {
   await fs.copyFile(bundledSchemaPath(), dest);
 }
 
-/** Recopie le schéma, y compris s'il existe déjà, pour exposer les nouvelles clés. */
+/** Copie le schéma seulement s'il n'est pas déjà à côté du JSON. */
 async function copySchemaIfAbsent(configPath: string): Promise<void> {
   if (isDevMode()) {
     return;
   }
   const dest = path.join(path.dirname(configPath), "remote-folders.schema.json");
   try {
-    await fs.copyFile(bundledSchemaPath(), dest);
+    await fs.copyFile(bundledSchemaPath(), dest, fs.constants.COPYFILE_EXCL);
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     if (err.code === "EEXIST" || err.code === "ENOENT") {

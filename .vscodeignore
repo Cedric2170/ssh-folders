@@ -6,6 +6,7 @@ tsconfig.json
 .gitattributes
 .editorconfig
 .cursorignore
+AGENTS.md
 **/*.map
 **/*.vsix
 vsix/**

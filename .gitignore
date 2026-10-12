@@ -1,5 +1,6 @@
 # IDE / éditeur (préférences locales)
 .vscode/settings.json
+.cursor/**
 
 # Secrets et variables d'environnement
 .env

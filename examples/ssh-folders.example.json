@@ -2,7 +2,8 @@
   "$schema": "../schemas/remote-folders.schema.json",
   "defaults": {
     "DefaultFolder": "/opt/docker/projects",
-    "RecentLimit": 20
+    "RecentLimit": 20,
+    "ActiveColor": "green"
   },
   "folders": {
     "demo-docker": [
