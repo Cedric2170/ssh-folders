@@ -65,11 +65,11 @@ export function hostFromRemoteAuthority(
 }
 
 export function currentSshHost(): string | undefined {
-  const fromEnv = (vscode.env as { remoteAuthority?: string }).remoteAuthority;
+  // Cursor bloque vscode.env.remoteAuthority derrière l'API proposée resolvers.
   const fromFolder = vscode.workspace.workspaceFolders?.find(
     (folder) => folder.uri.scheme === "vscode-remote"
   )?.uri.authority;
-  return hostFromRemoteAuthority(fromEnv ?? fromFolder);
+  return hostFromRemoteAuthority(fromFolder);
 }
 
 export type ActiveRemoteFolder = {
