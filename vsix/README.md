@@ -4,7 +4,16 @@ Modifications de chaque version empaquetée dans ce dossier.
 `npm run package` ajoute la section de la version courante si elle n'existe pas encore.
 Une section déjà présente n'est pas réécrite.
 
-<!-- rev:598e2328fbcce65ce00c735a2ea91c9a99faea13 -->
+<!-- rev:5661e56e932ec9adfdd34f55d21a4631b3940867 -->
+
+## 0.2.5-1
+
+- sans le choix des couleurs
+- Retour vers la couleur automatique du theme sans le choix personnalisé
+- ssh color active connexion
+- mode dev for debug
+- Exemple files and readme
+
 
 ## 0.2.4
 

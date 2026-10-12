@@ -2,7 +2,7 @@
   "name": "ssh-folders",
   "displayName": "SSH - Folders",
   "description": "Liste les hôtes SSH et des dossiers distants favoris. Remote-SSH gère la connexion.",
-  "version": "0.2.4",
+  "version": "0.2.5-1",
   "publisher": "cedric217",
   "author": "Cédric Baertschi",
   "license": "SEE LICENSE IN LICENSE",
