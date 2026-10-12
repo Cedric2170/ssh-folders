@@ -259,6 +259,18 @@
         }
       }
     },
+    "colors": [
+      {
+        "id": "sshFolders.activeForeground",
+        "description": "Connexion SSH et dossier distant ouverts dans cette fenêtre.",
+        "defaults": {
+          "dark": "#3fb950",
+          "light": "#1a7f37",
+          "highContrast": "#3fb950",
+          "highContrastLight": "#1a7f37"
+        }
+      }
+    ],
     "jsonValidation": [
       {
         "fileMatch": [

@@ -23,6 +23,7 @@ import {
   sshRemoteAuthority,
 } from "./sshConfig";
 import {
+  ActiveItemDecorationProvider,
   FolderItem,
   HostItem,
   SshFoldersTreeProvider,
@@ -426,6 +427,12 @@ async function activateOnce(
   push(
     treeView,
     visibility,
+    vscode.window.registerFileDecorationProvider(
+      new ActiveItemDecorationProvider()
+    ),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      treeProvider.refresh();
+    }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("sshFolders.view")) {
         refresh();

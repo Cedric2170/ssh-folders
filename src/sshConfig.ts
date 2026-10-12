@@ -72,6 +72,58 @@ export function currentSshHost(): string | undefined {
   return hostFromRemoteAuthority(fromEnv ?? fromFolder);
 }
 
+export type ActiveRemoteFolder = {
+  host: string;
+  path: string;
+};
+
+function normalizeRemotePath(value: string): string {
+  const collapsed = value.trim().replace(/\/+/g, "/");
+  if (collapsed.length > 1 && collapsed.endsWith("/")) {
+    return collapsed.slice(0, -1);
+  }
+  return collapsed;
+}
+
+export function sameRemotePath(a: string, b: string): boolean {
+  return normalizeRemotePath(a) === normalizeRemotePath(b);
+}
+
+/** Dossiers distants ouverts dans cette fenêtre. */
+export function activeRemoteFolders(): ActiveRemoteFolder[] {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  const found: ActiveRemoteFolder[] = [];
+  for (const folder of folders) {
+    if (folder.uri.scheme !== "vscode-remote") {
+      continue;
+    }
+    const host = hostFromRemoteAuthority(folder.uri.authority);
+    if (!host) {
+      continue;
+    }
+    found.push({ host, path: folder.uri.path });
+  }
+  return found;
+}
+
+export function isActiveSshHost(alias: string): boolean {
+  const folders = activeRemoteFolders();
+  if (folders.some((item) => sameHost(item.host, alias))) {
+    return true;
+  }
+  if (folders.length > 0) {
+    return false;
+  }
+  const host = currentSshHost();
+  return host ? sameHost(host, alias) : false;
+}
+
+export function isActiveRemoteFolder(alias: string, folderPath: string): boolean {
+  return activeRemoteFolders().some(
+    (item) => sameHost(item.host, alias) && sameRemotePath(item.path, folderPath)
+  );
+}
+
 function globToRegExp(pattern: string): RegExp {
   const escaped = pattern
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")
