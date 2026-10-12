@@ -2,10 +2,18 @@
   "name": "ssh-folders",
   "displayName": "SSH - Folders",
   "description": "Liste les hôtes SSH et des dossiers distants favoris. Remote-SSH gère la connexion.",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "publisher": "cedric217",
   "author": "Cédric Baertschi",
   "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cedric2170/ssh-folders.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Cedric2170/ssh-folders/issues"
+  },
+  "homepage": "https://github.com/Cedric2170/ssh-folders#readme",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.85.0"
@@ -251,6 +259,18 @@
         }
       }
     },
+    "colors": [
+      {
+        "id": "sshFolders.activeForeground",
+        "description": "Connexion SSH et dossier distant ouverts dans cette fenêtre.",
+        "defaults": {
+          "dark": "#3fb950",
+          "light": "#1a7f37",
+          "highContrast": "#3fb950",
+          "highContrastLight": "#1a7f37"
+        }
+      }
+    ],
     "jsonValidation": [
       {
         "fileMatch": [
@@ -265,9 +285,9 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package --allow-missing-repository",
-    "publish:vscode": "vsce publish --allow-missing-repository",
-    "publish:openvsx": "npx ovsx publish ssh-folders-$(node -p \"require('./package.json').version\").vsix"
+    "package": "mkdir -p vsix && node scripts/vsix-readme.js && vsce package -o vsix",
+    "publish:vscode": "npm run package && vsce publish -i vsix/ssh-folders-$(node -p \"require('./package.json').version\").vsix",
+    "publish:openvsx": "npx ovsx publish vsix/ssh-folders-$(node -p \"require('./package.json').version\").vsix"
   },
   "dependencies": {
     "ssh-config": "^5.2.1"

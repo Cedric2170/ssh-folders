@@ -6,8 +6,10 @@ tsconfig.json
 .gitattributes
 .editorconfig
 .cursorignore
+AGENTS.md
 **/*.map
 **/*.vsix
+vsix/**
 .cursor/**
 dev.md
 node_modules/**/*.md

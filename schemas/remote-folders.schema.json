@@ -24,6 +24,31 @@
           "maximum": 100,
           "default": 20,
           "description": "Nombre de derniers accès affichés dans la vue correspondante (1 à 100, 20 par défaut)."
+        },
+        "ActiveColor": {
+          "description": "Couleur de la connexion et du dossier ouverts. Vert par défaut. Noms : green (vert), blue (bleu), orange, red (rouge), purple (violet), yellow (jaune). Ou un code hexadécimal. Exemple : \"purple\" ou \"#7c3aed\".",
+          "default": "green",
+          "anyOf": [
+            {
+              "enum": [
+                "green",
+                "vert",
+                "blue",
+                "bleu",
+                "orange",
+                "red",
+                "rouge",
+                "purple",
+                "violet",
+                "yellow",
+                "jaune"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$"
+            }
+          ]
         }
       }
     },

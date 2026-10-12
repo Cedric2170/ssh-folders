@@ -2,6 +2,7 @@ import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
+import { assertDevWritePath, devFoldersConfigPath, isDevMode } from "./devMode";
 import { sameHost } from "./sshConfig";
 
 export interface FolderEntry {
@@ -12,9 +13,39 @@ export interface FolderEntry {
 export const DEFAULT_RECENT_LIMIT = 20;
 export const MAX_RECENT_LIMIT = 100;
 
+export const ACTIVE_COLOR_NAMES = [
+  "green",
+  "blue",
+  "orange",
+  "red",
+  "purple",
+  "yellow",
+] as const;
+
+export type ActiveColorName = (typeof ACTIVE_COLOR_NAMES)[number];
+
+export type ActiveColor =
+  | { kind: "name"; name: ActiveColorName }
+  | { kind: "hex"; hex: string };
+
+const ACTIVE_COLOR_ALIASES: Record<string, ActiveColorName> = {
+  green: "green",
+  vert: "green",
+  blue: "blue",
+  bleu: "blue",
+  orange: "orange",
+  red: "red",
+  rouge: "red",
+  purple: "purple",
+  violet: "purple",
+  yellow: "yellow",
+  jaune: "yellow",
+};
+
 export interface FolderDefaults {
   DefaultFolder?: string;
   RecentLimit?: number;
+  ActiveColor?: string;
   [key: string]: unknown;
 }
 
@@ -27,10 +58,37 @@ export interface FoldersFile {
 const EMPTY_FILE: FoldersFile = { folders: {} };
 const RELATIVE_SCHEMA = "./remote-folders.schema.json";
 
+function bundledExamplePath(): string {
+  return path.join(__dirname, "..", "examples", "ssh-folders.example.json");
+}
+
+function bundledSchemaPath(): string {
+  return path.join(__dirname, "..", "schemas", "remote-folders.schema.json");
+}
+
 async function copySchemaNextToConfig(configPath: string): Promise<void> {
+  if (isDevMode()) {
+    return;
+  }
   const dest = path.join(path.dirname(configPath), "remote-folders.schema.json");
-  const src = path.join(__dirname, "..", "schemas", "remote-folders.schema.json");
-  await fs.copyFile(src, dest);
+  await fs.copyFile(bundledSchemaPath(), dest);
+}
+
+/** Copie le schéma seulement s'il n'est pas déjà à côté du JSON. */
+async function copySchemaIfAbsent(configPath: string): Promise<void> {
+  if (isDevMode()) {
+    return;
+  }
+  const dest = path.join(path.dirname(configPath), "remote-folders.schema.json");
+  try {
+    await fs.copyFile(bundledSchemaPath(), dest, fs.constants.COPYFILE_EXCL);
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "EEXIST" || err.code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
 }
 
 function expandHome(filePath: string): string {
@@ -44,6 +102,9 @@ function expandHome(filePath: string): string {
 }
 
 export function getFoldersConfigPath(): string {
+  if (isDevMode()) {
+    return devFoldersConfigPath();
+  }
   const custom = vscode.workspace
     .getConfiguration("sshFolders")
     .get<string>("configPath");
@@ -132,7 +193,50 @@ function normalizeDefaults(raw: unknown): FolderDefaults | undefined {
   } else {
     delete defaults.RecentLimit;
   }
+  if (typeof rec.ActiveColor === "string" && parseActiveColor(rec.ActiveColor)) {
+    defaults.ActiveColor = rec.ActiveColor.trim();
+  } else {
+    delete defaults.ActiveColor;
+  }
   return Object.keys(defaults).length > 0 ? defaults : undefined;
+}
+
+function normalizeHex(value: string): string | undefined {
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(value);
+  if (!match) {
+    return undefined;
+  }
+  const body = match[1];
+  if (body.length === 3) {
+    return `#${body[0]}${body[0]}${body[1]}${body[1]}${body[2]}${body[2]}`;
+  }
+  return `#${body}`;
+}
+
+export function parseActiveColor(raw: unknown): ActiveColor | undefined {
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const text = raw.trim().toLowerCase();
+  const name = ACTIVE_COLOR_ALIASES[text];
+  if (name) {
+    return { kind: "name", name };
+  }
+  const hex = normalizeHex(text);
+  if (!hex) {
+    return undefined;
+  }
+  return { kind: "hex", hex };
+}
+
+/** Vert si la clé est absente ou illisible. */
+export function activeColorOf(data: FoldersFile | undefined): ActiveColor {
+  return (
+    parseActiveColor(data?.defaults?.ActiveColor) ?? {
+      kind: "name",
+      name: "green",
+    }
+  );
 }
 
 function normalizeFile(raw: unknown): FoldersFile {
@@ -214,6 +318,7 @@ export async function readFoldersFile(): Promise<FoldersFile> {
 
 export async function writeFoldersFile(data: FoldersFile): Promise<void> {
   const filePath = getFoldersConfigPath();
+  assertDevWritePath(filePath);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await copySchemaNextToConfig(filePath);
   const payload = `${JSON.stringify(
@@ -312,12 +417,51 @@ export async function removeFolderEntry(
   await writeFoldersFile(data);
 }
 
+async function seedFoldersFileFromExample(filePath: string): Promise<void> {
+  assertDevWritePath(filePath);
+  const raw = await fs.readFile(bundledExamplePath(), "utf8");
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  // L'exemple du dépôt pointe vers ../schemas/ pour l'éditeur.
+  // Le fichier installé a le schéma copié dans le même dossier.
+  parsed.$schema = RELATIVE_SCHEMA;
+  const payload = `${JSON.stringify(parsed, null, 2)}\n`;
+  await fs.writeFile(filePath, payload, { encoding: "utf8", flag: "wx" });
+}
+
 export async function ensureFoldersFile(): Promise<string> {
+  if (isDevMode()) {
+    return getFoldersConfigPath();
+  }
   const filePath = getFoldersConfigPath();
+  let jsonExists = true;
   try {
     await fs.access(filePath);
-  } catch {
-    await writeFoldersFile({ ...EMPTY_FILE });
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code !== "ENOENT") {
+      throw error;
+    }
+    jsonExists = false;
   }
+
+  if (!jsonExists) {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    try {
+      await seedFoldersFileFromExample(filePath);
+      invalidateFoldersCache();
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code === "EEXIST") {
+        // Un autre lancement a créé le fichier : on garde cette copie.
+      } else if (err.code === "ENOENT") {
+        await writeFoldersFile({ ...EMPTY_FILE });
+        return filePath;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  await copySchemaIfAbsent(filePath);
   return filePath;
 }

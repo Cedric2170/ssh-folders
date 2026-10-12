@@ -1,11 +1,21 @@
 # IDE / éditeur (préférences locales)
 .vscode/settings.json
+.cursor/**
 
 # Secrets et variables d'environnement
 .env
 .env.*
 !.env.example
 .vault_pass
+*.pem
+*.key
+*.p8
+*.ppk
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.kdbx
 
 # Python
 __pycache__/
@@ -28,6 +38,8 @@ out/
 dist/
 build/
 *.log
+# Paquets locaux (npm run package → vsix/)
+vsix/*.vsix
 *.vsix
 
 # Backup / Temporaires
@@ -39,3 +51,4 @@ tmp/
 *.old
 */old/
 *old*/
+todo.md

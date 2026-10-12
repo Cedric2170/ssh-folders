@@ -17,7 +17,67 @@ import {
   listRecentAccess,
   type RecentAccess,
 } from "./recentAccess";
-import { cachedHostAliases } from "./sshConfig";
+import {
+  cachedHostAliases,
+  isActiveRemoteFolder,
+  isActiveSshHost,
+} from "./sshConfig";
+import { activeChartColor, activeHex, coloredIconUri } from "./activeColor";
+import { isFolderInOpenWindow, isHostInOpenWindow } from "./openWindows";
+import { isDevMode } from "./devMode";
+
+const ACTIVE_SCHEME = "ssh-folders-active";
+const activeDecorationEmitter = new vscode.EventEmitter<
+  vscode.Uri | vscode.Uri[] | undefined
+>();
+
+function refreshActiveDecorations(): void {
+  activeDecorationEmitter.fire(undefined);
+}
+
+function hostIsActive(alias: string): boolean {
+  return isActiveSshHost(alias) || isHostInOpenWindow(alias);
+}
+
+function folderIsActive(alias: string, folderPath: string): boolean {
+  return (
+    isActiveRemoteFolder(alias, folderPath) ||
+    isFolderInOpenWindow(alias, folderPath)
+  );
+}
+
+function activeIcon(
+  iconId: string,
+  active: boolean
+): vscode.ThemeIcon | vscode.Uri {
+  if (!active) {
+    return new vscode.ThemeIcon(iconId);
+  }
+  return coloredIconUri(iconId, activeHex());
+}
+
+function activeResource(id: string): vscode.Uri {
+  return vscode.Uri.from({
+    scheme: ACTIVE_SCHEME,
+    path: "/item",
+    query: id,
+  });
+}
+
+export class ActiveItemDecorationProvider
+  implements vscode.FileDecorationProvider
+{
+  readonly onDidChangeFileDecorations = activeDecorationEmitter.event;
+
+  provideFileDecoration(
+    uri: vscode.Uri
+  ): vscode.FileDecoration | undefined {
+    if (uri.scheme !== ACTIVE_SCHEME) {
+      return undefined;
+    }
+    return { color: activeChartColor() };
+  }
+}
 
 export type OpenTarget = {
   kind: "host" | "folder";
@@ -36,8 +96,18 @@ export class HostItem extends vscode.TreeItem {
     super(alias, vscode.TreeItemCollapsibleState.Collapsed);
     this.contextValue = options.recent ? "recentHost" : "host";
     this.id = options.recent ? `recent:host:${alias}` : `host:${alias}`;
-    this.iconPath = new vscode.ThemeIcon("server");
+    const active = hostIsActive(alias);
+    this.iconPath = activeIcon("server", active);
     this.tooltip = options.tooltip ?? alias;
+    if (active) {
+      this.resourceUri = activeResource(this.id);
+      this.tooltip = `${this.tooltip}\nConnexion active`;
+      this.accessibilityInformation = {
+        label: options.description
+          ? `${alias}, ${options.description}, connexion active`
+          : `${alias}, connexion active`,
+      };
+    }
     if (options.description) {
       this.description = options.description;
       this.collapsibleState = vscode.TreeItemCollapsibleState.None;
@@ -54,6 +124,7 @@ export class FolderItem extends vscode.TreeItem {
   readonly contextValue: "folder" | "recentFolder";
   readonly kind = "folder" as const;
   readonly path: string;
+  readonly active: boolean;
 
   constructor(
     public readonly alias: string,
@@ -72,10 +143,11 @@ export class FolderItem extends vscode.TreeItem {
     );
     this.contextValue = options.recent ? "recentFolder" : "folder";
     this.path = entry.path;
+    this.active = folderIsActive(alias, entry.path);
     this.id = options.recent
       ? `recent:folder:${alias}:${entry.path}`
       : `folder:${alias}:${entry.path}`;
-    this.iconPath = new vscode.ThemeIcon("symbol-folder");
+    this.iconPath = activeIcon("symbol-folder", this.active);
     this.command = {
       command: "sshFolders.openInNewWindow",
       title: "Ouvrir dans une nouvelle fenêtre",
@@ -93,6 +165,14 @@ export class FolderItem extends vscode.TreeItem {
       (options.flat
         ? `${this.label} — ${alias}:${entry.path}`
         : `${alias}:${entry.path}`);
+    if (this.active) {
+      this.resourceUri = activeResource(this.id);
+      this.tooltip = `${this.tooltip}\nDossier actif`;
+      const label = this.label?.toString() ?? folderLabel(entry);
+      this.accessibilityInformation = {
+        label: `${label}, ${this.description ?? entry.path}, dossier actif`,
+      };
+    }
   }
 }
 
@@ -103,12 +183,19 @@ export class FolderGroupItem extends vscode.TreeItem {
   constructor(
     public readonly groupName: string,
     public readonly stem: string,
-    public readonly children: FolderItem[]
+    public readonly children: FolderItem[],
+    active = false
   ) {
     super(groupName, vscode.TreeItemCollapsibleState.Collapsed);
     this.id = `group:${stem}`;
-    this.iconPath = new vscode.ThemeIcon("layers");
-    this.tooltip = groupName;
+    this.iconPath = activeIcon("layers", active);
+    this.tooltip = active ? `${groupName}\nDossier actif` : groupName;
+    if (active) {
+      this.resourceUri = activeResource(this.id);
+      this.accessibilityInformation = {
+        label: `${groupName}, dossier actif`,
+      };
+    }
   }
 }
 
@@ -127,7 +214,9 @@ export type SshFoldersItem = HostItem | FolderItem | FolderGroupItem | StatusIte
 
 export type ViewMode = "byHost" | "byFolder" | "recent";
 
-export function getViewMode(): ViewMode {
+let heldViewMode: ViewMode | undefined;
+
+function configuredViewMode(): ViewMode {
   const value = vscode.workspace
     .getConfiguration("sshFolders")
     .get<string>("view");
@@ -137,14 +226,32 @@ export function getViewMode(): ViewMode {
   return "byHost";
 }
 
+/** Garde le mode d'affichage en mémoire pour ne pas écrire sshFolders.view. */
+export function holdViewMode(): void {
+  heldViewMode = configuredViewMode();
+}
+
+export function releaseViewMode(): void {
+  heldViewMode = undefined;
+}
+
+export function rememberViewMode(mode: ViewMode): void {
+  heldViewMode = mode;
+}
+
+export function getViewMode(): ViewMode {
+  return heldViewMode ?? configuredViewMode();
+}
+
 export function viewTitle(mode: ViewMode): string {
+  const suffix = isDevMode() ? " · dev" : "";
   if (mode === "byFolder") {
-    return "Dossiers A-Z";
+    return `Dossiers A-Z${suffix}`;
   }
   if (mode === "recent") {
-    return "Derniers accès";
+    return `Derniers accès${suffix}`;
   }
-  return "SSH - Folders";
+  return `SSH - Folders${suffix}`;
 }
 
 function toFlatFolderItem(ref: AzFolderRef): FolderItem {
@@ -167,10 +274,12 @@ function listFoldersAlphabetical(): SshFoldersItem[] {
     if (node.kind === "leaf") {
       return toFlatFolderItem(node.item);
     }
+    const children = node.items.map(toFlatFolderItem);
     return new FolderGroupItem(
       node.name,
       node.stem,
-      node.items.map(toFlatFolderItem)
+      children,
+      children.some((child) => child.active)
     );
   });
 }
@@ -228,6 +337,7 @@ export class SshFoldersTreeProvider
   }
 
   refresh(): void {
+    refreshActiveDecorations();
     this.onDidChangeTreeDataEmitter.fire(undefined);
   }
 

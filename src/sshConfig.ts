@@ -3,6 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import SSHConfig from "ssh-config";
+import { devSshConfigPath, isDevMode } from "./devMode";
 
 function expandHome(filePath: string): string {
   if (filePath === "~") {
@@ -15,6 +16,9 @@ function expandHome(filePath: string): string {
 }
 
 export function getSshConfigPath(): string {
+  if (isDevMode()) {
+    return devSshConfigPath();
+  }
   const custom = vscode.workspace
     .getConfiguration("remote.SSH")
     .get<string>("configFile");
@@ -66,6 +70,58 @@ export function currentSshHost(): string | undefined {
     (folder) => folder.uri.scheme === "vscode-remote"
   )?.uri.authority;
   return hostFromRemoteAuthority(fromEnv ?? fromFolder);
+}
+
+export type ActiveRemoteFolder = {
+  host: string;
+  path: string;
+};
+
+function normalizeRemotePath(value: string): string {
+  const collapsed = value.trim().replace(/\/+/g, "/");
+  if (collapsed.length > 1 && collapsed.endsWith("/")) {
+    return collapsed.slice(0, -1);
+  }
+  return collapsed;
+}
+
+export function sameRemotePath(a: string, b: string): boolean {
+  return normalizeRemotePath(a) === normalizeRemotePath(b);
+}
+
+/** Dossiers distants ouverts dans cette fenêtre. */
+export function activeRemoteFolders(): ActiveRemoteFolder[] {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  const found: ActiveRemoteFolder[] = [];
+  for (const folder of folders) {
+    if (folder.uri.scheme !== "vscode-remote") {
+      continue;
+    }
+    const host = hostFromRemoteAuthority(folder.uri.authority);
+    if (!host) {
+      continue;
+    }
+    found.push({ host, path: folder.uri.path });
+  }
+  return found;
+}
+
+export function isActiveSshHost(alias: string): boolean {
+  const folders = activeRemoteFolders();
+  if (folders.some((item) => sameHost(item.host, alias))) {
+    return true;
+  }
+  if (folders.length > 0) {
+    return false;
+  }
+  const host = currentSshHost();
+  return host ? sameHost(host, alias) : false;
+}
+
+export function isActiveRemoteFolder(alias: string, folderPath: string): boolean {
+  return activeRemoteFolders().some(
+    (item) => sameHost(item.host, alias) && sameRemotePath(item.path, folderPath)
+  );
 }
 
 function globToRegExp(pattern: string): RegExp {
@@ -190,6 +246,11 @@ let aliasesCache: AliasesCache | undefined;
 let reloadInFlight: Promise<string[]> | undefined;
 
 export function initHostCache(state: vscode.Memento): void {
+  if (isDevMode()) {
+    hostMemento = undefined;
+    aliasesCache = undefined;
+    return;
+  }
   hostMemento = state;
   const raw = state.get<PersistedHostCache>(HOST_STATE_KEY);
   const configPath = getSshConfigPath();
@@ -211,7 +272,7 @@ export function initHostCache(state: vscode.Memento): void {
 }
 
 function persistHostCache(): void {
-  if (!hostMemento || !aliasesCache) {
+  if (isDevMode() || !hostMemento || !aliasesCache) {
     return;
   }
   void hostMemento.update(HOST_STATE_KEY, {
