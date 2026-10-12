@@ -115,7 +115,7 @@ npm run publish:vscode
 npm run publish:openvsx
 ~~~
 
-`npm run package` écrit `vsix/ssh-folders-<version>.vsix`. `publish:vscode`
+`npm run package` écrit `vsix/ssh-folders-<version>.vsix` et, si elle manque, la section de cette version dans `vsix/README.md`. Une section déjà écrite n'est pas réécrite. `publish:vscode`
 repackage si besoin puis publie ce fichier. `publish:openvsx` envoie le même
 `.vsix`. Le jeton Open VSX vient de `OVSX_PAT` ou de `npx ovsx login cedric217`.
 
