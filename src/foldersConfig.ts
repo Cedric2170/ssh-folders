@@ -133,6 +133,52 @@ export function assertRemotePath(remotePath: string): string {
   return trimmed;
 }
 
+/** Dossier projects d'un hôte (libellé Projects, chemin se terminant par /projects, ou DefaultFolder). */
+export function projectsRootForHost(
+  host: string,
+  folders: Record<string, FolderEntry[]>,
+  globalDefault?: string
+): string | undefined {
+  const list = folders[host] ?? [];
+  for (const entry of list) {
+    if (entry.label?.trim().toLocaleLowerCase("fr") === "projects") {
+      return entry.path.replace(/\/+$/, "");
+    }
+  }
+  for (const entry of list) {
+    const normalized = entry.path.replace(/\/+$/, "");
+    if (normalized.endsWith("/projects")) {
+      return normalized;
+    }
+  }
+  return globalDefault?.replace(/\/+$/, "");
+}
+
+/**
+ * Corrige /opt/docker/foo → /opt/docker/projects/foo quand le dossier projects existe
+ * mais a été omis à la saisie manuelle.
+ */
+export function repairPathUnderProjectsRoot(
+  remotePath: string,
+  projectsRoot: string
+): string {
+  const root = projectsRoot.replace(/\/+$/, "");
+  const parent = path.posix.dirname(root);
+  const rootBase = path.posix.basename(root);
+  const prefix = `${parent}/`;
+  if (!remotePath.startsWith(prefix)) {
+    return remotePath;
+  }
+  if (remotePath === root || remotePath.startsWith(`${root}/`)) {
+    return remotePath;
+  }
+  const rest = remotePath.slice(prefix.length);
+  if (rest === rootBase || rest.startsWith(`${rootBase}/`)) {
+    return remotePath;
+  }
+  return `${root}/${rest.replace(/^\/+/, "")}`;
+}
+
 export function foldersForHost(
   data: FoldersFile,
   host: string
@@ -240,13 +286,20 @@ export function activeColorOf(data: FoldersFile | undefined): ActiveColor {
 }
 
 function normalizeFile(raw: unknown): FoldersFile {
+  return normalizeFileWithMeta(raw).data;
+}
+
+export function normalizeFileWithMeta(raw: unknown): {
+  data: FoldersFile;
+  repairedPaths: boolean;
+} {
   if (!raw || typeof raw !== "object") {
-    return { ...EMPTY_FILE };
+    return { data: { ...EMPTY_FILE }, repairedPaths: false };
   }
   const source = raw as FoldersFile;
   const foldersRaw = source.folders;
   if (!foldersRaw || typeof foldersRaw !== "object") {
-    return { ...EMPTY_FILE };
+    return { data: { ...EMPTY_FILE }, repairedPaths: false };
   }
 
   const folders: Record<string, FolderEntry[]> = {};
@@ -260,9 +313,28 @@ function normalizeFile(raw: unknown): FoldersFile {
     }));
   }
   const defaults = normalizeDefaults(source.defaults);
+  const globalDefault = defaults?.DefaultFolder;
+  let repairedPaths = false;
+  for (const [host, list] of Object.entries(folders)) {
+    const projectsRoot = projectsRootForHost(host, folders, globalDefault);
+    if (!projectsRoot) {
+      continue;
+    }
+    folders[host] = list.map((entry) => {
+      const pathFixed = repairPathUnderProjectsRoot(entry.path, projectsRoot);
+      if (pathFixed === entry.path) {
+        return entry;
+      }
+      repairedPaths = true;
+      return { ...entry, path: pathFixed };
+    });
+  }
   return {
-    folders,
-    ...(defaults ? { defaults } : {}),
+    data: {
+      folders,
+      ...(defaults ? { defaults } : {}),
+    },
+    repairedPaths,
   };
 }
 
@@ -285,8 +357,13 @@ async function loadFoldersFile(filePath: string): Promise<FoldersFile> {
   try {
     const content = await fs.readFile(filePath, "utf8");
     try {
-      const data = normalizeFile(JSON.parse(content) as unknown);
+      const { data, repairedPaths } = normalizeFileWithMeta(
+        JSON.parse(content) as unknown
+      );
       foldersCache = { path: filePath, data };
+      if (repairedPaths && !isDevMode()) {
+        await writeFoldersFile(data);
+      }
       return data;
     } catch {
       throw new Error(`Fichier JSON invalide : ${filePath}`);
