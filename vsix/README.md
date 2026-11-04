@@ -3,8 +3,25 @@
 Modifications de chaque version empaquetée dans ce dossier.
 `npm run package` ajoute la section de la version courante si elle n'existe pas encore.
 Une section déjà présente n'est pas réécrite.
+Le même script met à jour dans `README.md` (Marketplace) uniquement la dernière version.
 
-<!-- rev:598e2328fbcce65ce00c735a2ea91c9a99faea13 -->
+<!-- rev:30d6f58040766c87b2f18b88727d6ab8db63a5ff -->
+
+## 0.2.6
+
+- Correction du chargement SSH et de l'erreur API `resolvers` (bouton + en haut inclus).
+- Correction des chemins auxquels il manquait le segment `projects` à l'ajout.
+- Coloration de la connexion et du dossier actifs.
+
+
+## 0.2.5-1
+
+- sans le choix des couleurs
+- Retour vers la couleur automatique du theme sans le choix personnalisé
+- ssh color active connexion
+- mode dev for debug
+- Exemple files and readme
+
 
 ## 0.2.4
 

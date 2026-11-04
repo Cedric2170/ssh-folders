@@ -1,3 +1,4 @@
+import * as path from "path";
 import * as vscode from "vscode";
 import {
   addFolderEntry,
@@ -7,7 +8,9 @@ import {
   getFoldersConfigPath,
   invalidateFoldersCache,
   labelFromDefaultFolder,
+  projectsRootForHost,
   readFoldersFile,
+  repairPathUnderProjectsRoot,
   removeFolderEntry,
   renameFolderEntry,
 } from "./foldersConfig";
@@ -341,6 +344,7 @@ async function activateOnce(
 
     const data = await readFoldersFile();
     const defaultFolder = defaultFolderPath(data);
+    const projectsRoot = projectsRootForHost(alias, data.folders, defaultFolder);
     const remotePath = await vscode.window.showInputBox({
       title: `Ajouter un dossier — ${alias}`,
       prompt: "Chemin POSIX absolu sur l'hôte distant",
@@ -351,7 +355,13 @@ async function activateOnce(
         : undefined,
       validateInput: (value) => {
         try {
-          assertRemotePath(value);
+          const pathValue = assertRemotePath(value);
+          if (projectsRoot) {
+            const fixed = repairPathUnderProjectsRoot(pathValue, projectsRoot);
+            if (fixed !== pathValue) {
+              return `Le chemin semble manquer « ${path.posix.basename(projectsRoot.replace(/\/+$/, ""))} ». Utilisez plutôt : ${fixed}`;
+            }
+          }
           return undefined;
         } catch (error) {
           return (error as Error).message;
