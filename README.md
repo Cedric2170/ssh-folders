@@ -28,6 +28,20 @@ Les noms sont triés, et l'hôte s'affiche à côté. Sans libellé, le nom du d
 
 L'historique est gardé par l'éditeur. Retirer une entrée laisse le favori en place.
 
+## Nouveautés / What's new
+
+Dernière version publiée uniquement.
+
+Latest published release only.
+
+<!-- latest-changelog:start -->
+### 0.2.6
+
+- Correction du chargement SSH et de l'erreur API `resolvers` (bouton + en haut inclus).
+- Correction des chemins auxquels il manquait le segment `projects` à l'ajout.
+- Coloration de la connexion et du dossier actifs.
+<!-- latest-changelog:end -->
+
 ## Français
 
 ### Fonctionnalités

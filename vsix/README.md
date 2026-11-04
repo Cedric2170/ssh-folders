@@ -3,8 +3,16 @@
 Modifications de chaque version empaquetée dans ce dossier.
 `npm run package` ajoute la section de la version courante si elle n'existe pas encore.
 Une section déjà présente n'est pas réécrite.
+Le même script met à jour dans `README.md` (Marketplace) uniquement la dernière version.
 
-<!-- rev:5661e56e932ec9adfdd34f55d21a4631b3940867 -->
+<!-- rev:30d6f58040766c87b2f18b88727d6ab8db63a5ff -->
+
+## 0.2.6
+
+- Correction du chargement SSH et de l'erreur API `resolvers` (bouton + en haut inclus).
+- Correction des chemins auxquels il manquait le segment `projects` à l'ajout.
+- Coloration de la connexion et du dossier actifs.
+
 
 ## 0.2.5-1
 
