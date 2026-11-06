@@ -13,6 +13,17 @@ export interface FolderEntry {
 export const DEFAULT_RECENT_LIMIT = 20;
 export const MAX_RECENT_LIMIT = 100;
 
+/**
+ * Clés écrites dans `defaults` lorsqu'elles manquent dans ssh-folders.json.
+ * Chaque nouveau réglage qui a une valeur par défaut s'ajoute ici, dans le schéma et dans l'exemple.
+ * Une clé sans défaut sûr, comme DefaultFolder, ne figure pas dans ce catalogue.
+ */
+export const DEFAULT_SETTINGS = {
+  RecentLimit: DEFAULT_RECENT_LIMIT,
+  ActiveColor: "green",
+  SortAlphabetical: true,
+} as const;
+
 export const ACTIVE_COLOR_NAMES = [
   "green",
   "blue",
@@ -46,6 +57,7 @@ export interface FolderDefaults {
   DefaultFolder?: string;
   RecentLimit?: number;
   ActiveColor?: string;
+  SortAlphabetical?: boolean;
   [key: string]: unknown;
 }
 
@@ -244,6 +256,11 @@ function normalizeDefaults(raw: unknown): FolderDefaults | undefined {
   } else {
     delete defaults.ActiveColor;
   }
+  if (typeof rec.SortAlphabetical === "boolean") {
+    defaults.SortAlphabetical = rec.SortAlphabetical;
+  } else {
+    delete defaults.SortAlphabetical;
+  }
   return Object.keys(defaults).length > 0 ? defaults : undefined;
 }
 
@@ -283,6 +300,37 @@ export function activeColorOf(data: FoldersFile | undefined): ActiveColor {
       name: "green",
     }
   );
+}
+
+function rawDefaultsRecord(raw: unknown): Record<string, unknown> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+  return raw as Record<string, unknown>;
+}
+
+/** Ajoute les clés du catalogue absentes du fichier. Une clé déjà présente est conservée. */
+export function applyMissingDefaults(
+  data: FoldersFile,
+  rawDefaults: unknown
+): { data: FoldersFile; added: boolean } {
+  const raw = rawDefaultsRecord(rawDefaults);
+  const defaults: FolderDefaults = { ...(data.defaults ?? {}) };
+  let added = false;
+  for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+    if (Object.prototype.hasOwnProperty.call(raw, key)) {
+      continue;
+    }
+    defaults[key] = value;
+    added = true;
+  }
+  if (!added) {
+    return { data, added: false };
+  }
+  return {
+    data: { ...data, defaults },
+    added: true,
+  };
 }
 
 function normalizeFile(raw: unknown): FoldersFile {
@@ -354,20 +402,9 @@ export function cachedFoldersFile(): FoldersFile | undefined {
 }
 
 async function loadFoldersFile(filePath: string): Promise<FoldersFile> {
+  let content: string;
   try {
-    const content = await fs.readFile(filePath, "utf8");
-    try {
-      const { data, repairedPaths } = normalizeFileWithMeta(
-        JSON.parse(content) as unknown
-      );
-      foldersCache = { path: filePath, data };
-      if (repairedPaths && !isDevMode()) {
-        await writeFoldersFile(data);
-      }
-      return data;
-    } catch {
-      throw new Error(`Fichier JSON invalide : ${filePath}`);
-    }
+    content = await fs.readFile(filePath, "utf8");
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     if (err.code === "ENOENT") {
@@ -377,6 +414,25 @@ async function loadFoldersFile(filePath: string): Promise<FoldersFile> {
     }
     throw error;
   }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error(`Fichier JSON invalide : ${filePath}`);
+  }
+
+  const { data, repairedPaths } = normalizeFileWithMeta(parsed);
+  const rawDefaults =
+    parsed && typeof parsed === "object"
+      ? (parsed as FoldersFile).defaults
+      : undefined;
+  const merged = applyMissingDefaults(data, rawDefaults);
+  foldersCache = { path: filePath, data: merged.data };
+  if (merged.added || (repairedPaths && !isDevMode())) {
+    await writeFoldersFile(merged.data);
+  }
+  return foldersCache.data;
 }
 
 export async function readFoldersFile(): Promise<FoldersFile> {
@@ -398,21 +454,27 @@ export async function writeFoldersFile(data: FoldersFile): Promise<void> {
   assertDevWritePath(filePath);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await copySchemaNextToConfig(filePath);
+  const complete = applyMissingDefaults(data, data.defaults).data;
   const payload = `${JSON.stringify(
     {
       $schema: RELATIVE_SCHEMA,
-      ...(data.defaults ? { defaults: data.defaults } : {}),
-      folders: data.folders,
+      ...(complete.defaults ? { defaults: complete.defaults } : {}),
+      folders: complete.folders,
     },
     null,
     2
   )}\n`;
   await fs.writeFile(filePath, payload, "utf8");
-  foldersCache = { path: filePath, data: normalizeFile(data) };
+  foldersCache = { path: filePath, data: normalizeFile(complete) };
 }
 
 export function defaultFolderPath(data: FoldersFile): string | undefined {
   return data.defaults?.DefaultFolder;
+}
+
+/** Vrai par défaut. `false` conserve l'ordre du fichier SSH config et du JSON. */
+export function sortAlphabetical(data: FoldersFile | undefined): boolean {
+  return data?.defaults?.SortAlphabetical !== false;
 }
 
 export function recentLimit(data: FoldersFile): number {

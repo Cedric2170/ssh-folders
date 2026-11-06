@@ -67,23 +67,41 @@ function longestCommonPrefix(values: string[]): string {
   return prefix.replace(/[-_\s]+$/u, "");
 }
 
-function compareAzText(a: string, b: string): number {
+export function compareText(a: string, b: string): number {
   return a.localeCompare(b, "fr", COMPARE);
 }
 
+export function sortHostAliases(aliases: readonly string[]): string[] {
+  return [...aliases].sort(compareText);
+}
+
+export function sortFolderEntries(entries: readonly FolderEntry[]): FolderEntry[] {
+  return [...entries].sort((a, b) => {
+    const byName = compareText(displayFolderName(a), displayFolderName(b));
+    if (byName !== 0) {
+      return byName;
+    }
+    return a.path.localeCompare(b.path);
+  });
+}
+
 function compareRefs(a: AzFolderRef, b: AzFolderRef): number {
-  const byName = compareAzText(displayFolderName(a.entry), displayFolderName(b.entry));
+  const byName = compareText(displayFolderName(a.entry), displayFolderName(b.entry));
   if (byName !== 0) {
     return byName;
   }
-  const byHost = compareAzText(a.alias, b.alias);
+  const byHost = compareText(a.alias, b.alias);
   if (byHost !== 0) {
     return byHost;
   }
   return a.entry.path.localeCompare(b.entry.path);
 }
 
-export function buildAzFolderTree(items: AzFolderRef[]): AzNode[] {
+export function buildAzFolderTree(
+  items: AzFolderRef[],
+  options: { sort?: boolean } = {}
+): AzNode[] {
+  const sort = options.sort !== false;
   const buckets = new Map<string, AzFolderRef[]>();
   for (const item of items) {
     const stem = groupStem(folderLabel(item.entry));
@@ -94,7 +112,9 @@ export function buildAzFolderTree(items: AzFolderRef[]): AzNode[] {
 
   const nodes: AzNode[] = [];
   for (const [stem, list] of buckets) {
-    list.sort(compareRefs);
+    if (sort) {
+      list.sort(compareRefs);
+    }
     if (list.length === 1) {
       const item = list[0];
       nodes.push({
@@ -113,6 +133,8 @@ export function buildAzFolderTree(items: AzFolderRef[]): AzNode[] {
     });
   }
 
-  nodes.sort((a, b) => compareAzText(a.name, b.name));
+  if (sort) {
+    nodes.sort((a, b) => compareText(a.name, b.name));
+  }
   return nodes;
 }

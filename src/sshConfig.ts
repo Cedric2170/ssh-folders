@@ -42,10 +42,24 @@ export function sshRemoteAuthority(alias: string): string {
 export function hostFromRemoteAuthority(
   authority: string | undefined
 ): string | undefined {
-  if (!authority || !authority.startsWith("ssh-remote+")) {
+  if (!authority) {
     return undefined;
   }
-  const rest = authority.slice("ssh-remote+".length).split("@")[0];
+  let value = authority;
+  if (value.includes("%")) {
+    try {
+      value = decodeURIComponent(value);
+    } catch {
+      // Autorité déjà décodée ou mal formée.
+    }
+  }
+  const marker = "ssh-remote+";
+  const markerAt = value.indexOf(marker);
+  if (markerAt < 0) {
+    return undefined;
+  }
+  value = value.slice(markerAt);
+  const rest = value.slice(marker.length).split("@")[0];
   if (!rest) {
     return undefined;
   }

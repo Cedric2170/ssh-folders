@@ -25,6 +25,11 @@
           "default": 20,
           "description": "Nombre de derniers accès affichés dans la vue correspondante (1 à 100, 20 par défaut)."
         },
+        "SortAlphabetical": {
+          "type": "boolean",
+          "default": true,
+          "description": "Trie les hôtes SSH, les dossiers sous chaque hôte et la liste des dossiers. Vrai par défaut. La vue derniers accès reste triée par date de connexion."
+        },
         "ActiveColor": {
           "description": "Couleur de la connexion et du dossier ouverts. Vert par défaut. Noms : green (vert), blue (bleu), orange, red (rouge), purple (violet), yellow (jaune). Ou un code hexadécimal. Exemple : \"purple\" ou \"#7c3aed\".",
           "default": "green",

@@ -5,11 +5,14 @@ import {
   folderLabel,
   foldersForHost,
   recentLimit,
+  sortAlphabetical,
   type FolderEntry,
 } from "./foldersConfig";
 import {
   buildAzFolderTree,
   displayFolderName,
+  sortFolderEntries,
+  sortHostAliases,
   type AzFolderRef,
 } from "./folderDisplay";
 import {
@@ -22,11 +25,11 @@ import {
   isActiveRemoteFolder,
   isActiveSshHost,
 } from "./sshConfig";
-import { activeChartColor, activeHex, coloredIconUri } from "./activeColor";
 import { isFolderInOpenWindow, isHostInOpenWindow } from "./openWindows";
 import { isDevMode } from "./devMode";
 
 const ACTIVE_SCHEME = "ssh-folders-active";
+const activeColor = new vscode.ThemeColor("sshFolders.activeForeground");
 const activeDecorationEmitter = new vscode.EventEmitter<
   vscode.Uri | vscode.Uri[] | undefined
 >();
@@ -46,14 +49,8 @@ function folderIsActive(alias: string, folderPath: string): boolean {
   );
 }
 
-function activeIcon(
-  iconId: string,
-  active: boolean
-): vscode.ThemeIcon | vscode.Uri {
-  if (!active) {
-    return new vscode.ThemeIcon(iconId);
-  }
-  return coloredIconUri(iconId, activeHex());
+function activeIcon(iconId: string, active: boolean): vscode.ThemeIcon {
+  return new vscode.ThemeIcon(iconId, active ? activeColor : undefined);
 }
 
 function activeResource(id: string): vscode.Uri {
@@ -75,7 +72,7 @@ export class ActiveItemDecorationProvider
     if (uri.scheme !== ACTIVE_SCHEME) {
       return undefined;
     }
-    return { color: activeChartColor() };
+    return { color: activeColor };
   }
 }
 
@@ -246,7 +243,8 @@ export function getViewMode(): ViewMode {
 export function viewTitle(mode: ViewMode): string {
   const suffix = isDevMode() ? " · dev" : "";
   if (mode === "byFolder") {
-    return `Dossiers A-Z${suffix}`;
+    const title = sortAlphabetical(cachedFoldersFile()) ? "Dossiers A-Z" : "Dossiers";
+    return `${title}${suffix}`;
   }
   if (mode === "recent") {
     return `Derniers accès${suffix}`;
@@ -270,7 +268,7 @@ function listFoldersAlphabetical(): SshFoldersItem[] {
     }
   }
 
-  return buildAzFolderTree(refs).map((node) => {
+  return buildAzFolderTree(refs, { sort: sortAlphabetical(data) }).map((node) => {
     if (node.kind === "leaf") {
       return toFlatFolderItem(node.item);
     }
@@ -359,7 +357,11 @@ export class SshFoldersTreeProvider
         if (aliases === undefined && !this.hostsReady) {
           return [new StatusItem("Chargement…")];
         }
-        return (aliases ?? []).map((alias) => new HostItem(alias));
+        const hosts = aliases ?? [];
+        const ordered = sortAlphabetical(cachedFoldersFile())
+          ? sortHostAliases(hosts)
+          : hosts;
+        return ordered.map((alias) => new HostItem(alias));
       }
 
       if (element instanceof FolderGroupItem) {
@@ -369,7 +371,10 @@ export class SshFoldersTreeProvider
       if (element.contextValue === "host" && getViewMode() === "byHost") {
         const data = cachedFoldersFile() ?? { folders: {} };
         const folders = foldersForHost(data, element.alias);
-        return folders.map((entry) => new FolderItem(element.alias, entry));
+        const ordered = sortAlphabetical(data)
+          ? sortFolderEntries(folders)
+          : folders;
+        return ordered.map((entry) => new FolderItem(element.alias, entry));
       }
 
       return [];

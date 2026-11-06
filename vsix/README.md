@@ -5,7 +5,14 @@ Modifications de chaque version empaquetée dans ce dossier.
 Une section déjà présente n'est pas réécrite.
 Le même script met à jour dans `README.md` (Marketplace) uniquement la dernière version.
 
-<!-- rev:30d6f58040766c87b2f18b88727d6ab8db63a5ff -->
+<!-- rev:f332532762ff434d37c69014bd7b9efc1ff52f20 -->
+
+## 0.2.6-1
+
+- Coloration de l'entrée active via le thème (`sshFolders.activeForeground`), sans icônes SVG.
+- Lecture de l'autorité Remote-SSH même si elle est encodée ou préfixée.
+- Tri alphabétique des hôtes et des dossiers (`defaults.SortAlphabetical`, vrai par défaut). Les derniers accès restent triés par date.
+- Les clés de `defaults` qui ont une valeur par défaut sont ajoutées au JSON si elles manquent.
 
 ## 0.2.6
 

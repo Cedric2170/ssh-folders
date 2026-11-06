@@ -2,7 +2,7 @@
   "name": "ssh-folders",
   "displayName": "SSH - Folders",
   "description": "Liste les hôtes SSH et des dossiers distants favoris. Remote-SSH gère la connexion.",
-  "version": "0.2.6",
+  "version": "0.2.6-1",
   "publisher": "cedric217",
   "author": "Cédric Baertschi",
   "license": "SEE LICENSE IN LICENSE",
@@ -250,9 +250,9 @@
             "recent"
           ],
           "enumDescriptions": [
-            "Grouper les dossiers sous chaque hôte SSH",
-            "Liste A-Z de tous les dossiers, regroupés par nom, tous hôtes confondus",
-            "Les 20 derniers accès, du plus récent au plus ancien"
+            "Grouper les dossiers sous chaque hôte SSH. Hôtes et dossiers en ordre alphabétique, sauf si defaults.SortAlphabetical vaut false.",
+            "Liste de tous les dossiers, regroupés par nom. Ordre alphabétique, sauf si defaults.SortAlphabetical vaut false.",
+            "Les derniers accès, du plus récent au plus ancien, quelle que soit la valeur de SortAlphabetical"
           ],
           "default": "byHost",
           "description": "Mode d'affichage de la vue SSH - Folders"

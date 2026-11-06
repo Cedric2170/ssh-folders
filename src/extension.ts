@@ -13,7 +13,9 @@ import {
   repairPathUnderProjectsRoot,
   removeFolderEntry,
   renameFolderEntry,
+  sortAlphabetical,
 } from "./foldersConfig";
+import { sortHostAliases } from "./folderDisplay";
 import {
   canonicalHostAlias,
   currentSshHost,
@@ -155,7 +157,9 @@ async function openTreeItem(
 }
 
 async function pickHost(preferred?: string): Promise<string | undefined> {
-  const aliases = await listHostAliases();
+  const listed = await listHostAliases();
+  const data = await readFoldersFile().catch(() => undefined);
+  const aliases = sortAlphabetical(data) ? sortHostAliases(listed) : listed;
   if (aliases.length === 0) {
     void vscode.window.showWarningMessage(
       "Aucun hôte trouvé dans le fichier SSH config."

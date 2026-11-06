@@ -70,6 +70,14 @@ ouvre ce chemin au lieu d'une fenêtre distante vide.
 (20 par défaut, entre 1 et 100). L'historique lui-même n'est pas dans ce JSON :
 il est stocké dans l'état global de l'extension Cursor / VS Code.
 
+`defaults.SortAlphabetical` trie les hôtes SSH, les dossiers sous chaque hôte
+et la liste des dossiers. Vrai par défaut. `false` conserve l'ordre du fichier
+SSH config et du JSON. La vue **Derniers accès** reste triée par date.
+
+Au chargement, les clés de `defaults` qui ont une valeur par défaut et qui
+manquent dans le JSON sont ajoutées. Une clé déjà présente n'est pas modifiée.
+Le catalogue est `DEFAULT_SETTINGS` dans `src/foldersConfig.ts`.
+
 ### Ajouter un dossier
 
 Le bouton **+** ouvre d'abord la liste des hôtes SSH :
@@ -86,7 +94,7 @@ Ensuite :
 
 ### Vues
 
-La vue **Dossiers A-Z** trie alphabétiquement, affiche `Census-Agent`
+La vue **Dossiers A-Z** trie alphabétiquement (sauf si `SortAlphabetical` vaut `false`), affiche `Census-Agent`
 (majuscule en début de mot, après un espace ou un tiret) et regroupe les
 noms de la même famille (`census-agent`, `census-dev` sous **Census**).
 
