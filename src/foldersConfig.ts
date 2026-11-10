@@ -22,6 +22,8 @@ export const DEFAULT_SETTINGS = {
   RecentLimit: DEFAULT_RECENT_LIMIT,
   ActiveColor: "green",
   SortAlphabetical: true,
+  HiddenHosts: [] as string[],
+  LastFolder: ["Projects", "_old"] as string[],
 } as const;
 
 export const ACTIVE_COLOR_NAMES = [
@@ -58,6 +60,8 @@ export interface FolderDefaults {
   RecentLimit?: number;
   ActiveColor?: string;
   SortAlphabetical?: boolean;
+  HiddenHosts?: string[];
+  LastFolder?: string[];
   [key: string]: unknown;
 }
 
@@ -261,6 +265,20 @@ function normalizeDefaults(raw: unknown): FolderDefaults | undefined {
   } else {
     delete defaults.SortAlphabetical;
   }
+  if (Array.isArray(rec.HiddenHosts)) {
+    defaults.HiddenHosts = rec.HiddenHosts.filter(
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    ).map((item) => item.trim());
+  } else {
+    delete defaults.HiddenHosts;
+  }
+  if (Array.isArray(rec.LastFolder)) {
+    defaults.LastFolder = rec.LastFolder.filter(
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    ).map((item) => item.trim());
+  } else {
+    delete defaults.LastFolder;
+  }
   return Object.keys(defaults).length > 0 ? defaults : undefined;
 }
 
@@ -321,7 +339,7 @@ export function applyMissingDefaults(
     if (Object.prototype.hasOwnProperty.call(raw, key)) {
       continue;
     }
-    defaults[key] = value;
+    defaults[key] = Array.isArray(value) ? [...value] : value;
     added = true;
   }
   if (!added) {
@@ -477,6 +495,70 @@ export function sortAlphabetical(data: FoldersFile | undefined): boolean {
   return data?.defaults?.SortAlphabetical !== false;
 }
 
+export function hiddenHostPatterns(data: FoldersFile | undefined): string[] {
+  const list = data?.defaults?.HiddenHosts;
+  return Array.isArray(list) ? list : [];
+}
+
+/** Libellés placés en fin de liste (ordre du tableau). Par défaut Projects puis _old. */
+export function lastFolderNames(data: FoldersFile | undefined): string[] {
+  const list = data?.defaults?.LastFolder;
+  return Array.isArray(list) ? list : [...DEFAULT_SETTINGS.LastFolder];
+}
+
+/** Indice dans LastFolder, ou -1 si le libellé n'y figure pas (comparaison sans casse). */
+export function lastFolderRank(
+  label: string,
+  data: FoldersFile | undefined
+): number {
+  const needle = label.trim();
+  if (!needle) {
+    return -1;
+  }
+  return lastFolderNames(data).findIndex(
+    (name) => name.localeCompare(needle, "fr", { sensitivity: "base" }) === 0
+  );
+}
+
+export function isLastFolderLabel(
+  label: string,
+  data: FoldersFile | undefined
+): boolean {
+  return lastFolderRank(label, data) >= 0;
+}
+
+function hostPatternMatches(pattern: string, alias: string): boolean {
+  const trimmed = pattern.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (!/[*?]/.test(trimmed)) {
+    return sameHost(trimmed, alias);
+  }
+  const escaped = trimmed
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".");
+  return new RegExp(`^${escaped}$`, "i").test(alias);
+}
+
+/** Vrai si l'alias correspond à un motif de `defaults.HiddenHosts`. */
+export function isHostHidden(
+  alias: string,
+  data: FoldersFile | undefined
+): boolean {
+  return hiddenHostPatterns(data).some((pattern) =>
+    hostPatternMatches(pattern, alias)
+  );
+}
+
+export function visibleHostAliases(
+  aliases: readonly string[],
+  data: FoldersFile | undefined
+): string[] {
+  return aliases.filter((alias) => !isHostHidden(alias, data));
+}
+
 export function recentLimit(data: FoldersFile): number {
   const value = data.defaults?.RecentLimit;
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -493,14 +575,15 @@ export function labelFromDefaultFolder(
     return path.posix.basename(remotePath);
   }
   const normalizedDefault = defaultFolder.replace(/\/+$/, "");
-  if (remotePath === normalizedDefault || remotePath === `${normalizedDefault}/`) {
+  const normalizedPath = remotePath.replace(/\/+$/, "");
+  if (normalizedPath === normalizedDefault) {
     return "";
   }
   const prefix = `${normalizedDefault}/`;
-  if (remotePath.startsWith(prefix)) {
-    return remotePath.slice(prefix.length).replace(/^\/+/, "");
+  if (normalizedPath.startsWith(prefix)) {
+    return normalizedPath.slice(prefix.length);
   }
-  return path.posix.basename(remotePath);
+  return path.posix.basename(normalizedPath);
 }
 
 export async function addFolderEntry(

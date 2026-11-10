@@ -284,6 +284,8 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
+    "dev:host": "npm run compile && printf 'real\\n' > .vscode/ssh-folders-dev.mode && cursor --extensionDevelopmentPath=\"$PWD\"",
+    "dev:host:exemples": "npm run compile && printf 'sandbox\\n' > .vscode/ssh-folders-dev.mode && cursor --extensionDevelopmentPath=\"$PWD\"",
     "watch": "tsc -watch -p ./",
     "package": "mkdir -p vsix && node scripts/vsix-readme.js && vsce package -o vsix",
     "publish:vscode": "npm run package && vsce publish -i vsix/ssh-folders-$(node -p \"require('./package.json').version\").vsix",

@@ -14,6 +14,7 @@ import {
   removeFolderEntry,
   renameFolderEntry,
   sortAlphabetical,
+  visibleHostAliases,
 } from "./foldersConfig";
 import { sortHostAliases } from "./folderDisplay";
 import {
@@ -159,10 +160,13 @@ async function openTreeItem(
 async function pickHost(preferred?: string): Promise<string | undefined> {
   const listed = await listHostAliases();
   const data = await readFoldersFile().catch(() => undefined);
-  const aliases = sortAlphabetical(data) ? sortHostAliases(listed) : listed;
+  const visible = visibleHostAliases(listed, data);
+  const aliases = sortAlphabetical(data) ? sortHostAliases(visible) : visible;
   if (aliases.length === 0) {
     void vscode.window.showWarningMessage(
-      "Aucun hôte trouvé dans le fichier SSH config."
+      listed.length === 0
+        ? "Aucun hôte trouvé dans le fichier SSH config."
+        : "Tous les hôtes SSH sont masqués (defaults.HiddenHosts)."
     );
     return undefined;
   }
@@ -208,6 +212,41 @@ async function openTextFile(filePath: string): Promise<void> {
     vscode.Uri.file(filePath)
   );
   await vscode.window.showTextDocument(document);
+}
+
+/** Ferme les onglets du bac à sable exemples, souvent restaurés hors mode sandbox. */
+async function closeSandboxEditors(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  if (isDevMode()) {
+    return;
+  }
+  const sandboxRoot = path.join(
+    context.globalStorageUri.fsPath,
+    "ssh-folders-dev"
+  );
+  const toClose: vscode.Tab[] = [];
+  for (const group of vscode.window.tabGroups.all) {
+    for (const tab of group.tabs) {
+      const input = tab.input;
+      if (!(input instanceof vscode.TabInputText)) {
+        continue;
+      }
+      if (input.uri.scheme !== "file") {
+        continue;
+      }
+      const filePath = input.uri.fsPath;
+      if (
+        filePath === sandboxRoot ||
+        filePath.startsWith(`${sandboxRoot}${path.sep}`)
+      ) {
+        toClose.push(tab);
+      }
+    }
+  }
+  if (toClose.length > 0) {
+    await vscode.window.tabGroups.close(toClose);
+  }
 }
 
 let activationDisposables: vscode.Disposable[] | undefined;
@@ -269,6 +308,7 @@ async function activateOnce(
     holdViewMode();
   } else {
     releaseViewMode();
+    await closeSandboxEditors(context);
   }
 
   initHostCache(context.globalState);

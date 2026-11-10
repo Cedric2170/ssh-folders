@@ -4,7 +4,9 @@
     "DefaultFolder": "/opt/docker/projects",
     "RecentLimit": 20,
     "ActiveColor": "green",
-    "SortAlphabetical": true
+    "SortAlphabetical": true,
+    "HiddenHosts": [],
+    "LastFolder": ["Projects", "_old"]
   },
   "folders": {
     "demo-docker": [
@@ -19,6 +21,10 @@
       {
         "path": "/opt/docker/projects/guacamole",
         "label": "Guacamole"
+      },
+      {
+        "path": "/opt/docker/projects/_old",
+        "label": "_old"
       }
     ],
     "demo-web": [

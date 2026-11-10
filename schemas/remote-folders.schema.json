@@ -30,6 +30,24 @@
           "default": true,
           "description": "Trie les hôtes SSH, les dossiers sous chaque hôte et la liste des dossiers. Vrai par défaut. La vue derniers accès reste triée par date de connexion."
         },
+        "HiddenHosts": {
+          "type": "array",
+          "default": [],
+          "description": "Alias Host SSH à masquer dans l'arbre et le choix d'hôte. Correspondance sans casse. Jokers * et ? acceptés. Exemple : [\"gitlab*\", \"github.com\"].",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "LastFolder": {
+          "type": "array",
+          "default": ["Projects", "_old"],
+          "description": "Libellés de dossiers placés en fin de liste (vue par hôte et vue A-Z). Correspondance sans casse avec le label affiché. L'ordre du tableau fixe l'ordre relatif en bas de liste. Par défaut : Projects puis _old.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "ActiveColor": {
           "description": "Couleur de la connexion et du dossier ouverts. Vert par défaut. Noms : green (vert), blue (bleu), orange, red (rouge), purple (violet), yellow (jaune). Ou un code hexadécimal. Exemple : \"purple\" ou \"#7c3aed\".",
           "default": "green",

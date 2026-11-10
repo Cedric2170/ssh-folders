@@ -4,8 +4,10 @@ import {
   findFolderEntry,
   folderLabel,
   foldersForHost,
+  isHostHidden,
   recentLimit,
   sortAlphabetical,
+  visibleHostAliases,
   type FolderEntry,
 } from "./foldersConfig";
 import {
@@ -263,12 +265,18 @@ function listFoldersAlphabetical(): SshFoldersItem[] {
   const data = cachedFoldersFile() ?? { folders: {} };
   const refs: AzFolderRef[] = [];
   for (const [alias, entries] of Object.entries(data.folders)) {
+    if (isHostHidden(alias, data)) {
+      continue;
+    }
     for (const entry of entries) {
       refs.push({ alias, entry });
     }
   }
 
-  return buildAzFolderTree(refs, { sort: sortAlphabetical(data) }).map((node) => {
+  return buildAzFolderTree(refs, {
+    sort: sortAlphabetical(data),
+    data,
+  }).map((node) => {
     if (node.kind === "leaf") {
       return toFlatFolderItem(node.item);
     }
@@ -291,6 +299,9 @@ function listRecentItems(): SshFoldersItem[] {
   const data = cachedFoldersFile() ?? { folders: {} };
   const items: SshFoldersItem[] = [];
   for (const access of listRecentAccess(recentLimit(data))) {
+    if (isHostHidden(access.alias, data)) {
+      continue;
+    }
     const relative = formatRelativeAccess(access.at);
     if (access.kind === "host") {
       items.push(
@@ -357,10 +368,9 @@ export class SshFoldersTreeProvider
         if (aliases === undefined && !this.hostsReady) {
           return [new StatusItem("Chargement…")];
         }
-        const hosts = aliases ?? [];
-        const ordered = sortAlphabetical(cachedFoldersFile())
-          ? sortHostAliases(hosts)
-          : hosts;
+        const data = cachedFoldersFile();
+        const hosts = visibleHostAliases(aliases ?? [], data);
+        const ordered = sortAlphabetical(data) ? sortHostAliases(hosts) : hosts;
         return ordered.map((alias) => new HostItem(alias));
       }
 
@@ -371,9 +381,10 @@ export class SshFoldersTreeProvider
       if (element.contextValue === "host" && getViewMode() === "byHost") {
         const data = cachedFoldersFile() ?? { folders: {} };
         const folders = foldersForHost(data, element.alias);
-        const ordered = sortAlphabetical(data)
-          ? sortFolderEntries(folders)
-          : folders;
+        const ordered = sortFolderEntries(folders, {
+          alphabetical: sortAlphabetical(data),
+          data,
+        });
         return ordered.map((entry) => new FolderItem(element.alias, entry));
       }
 

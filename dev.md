@@ -74,6 +74,15 @@ il est stocké dans l'état global de l'extension Cursor / VS Code.
 et la liste des dossiers. Vrai par défaut. `false` conserve l'ordre du fichier
 SSH config et du JSON. La vue **Derniers accès** reste triée par date.
 
+`defaults.HiddenHosts` masque des alias Host dans l'arbre, les vues dossiers /
+derniers accès, et le choix d'hôte du bouton +. Liste vide par défaut.
+Correspondance sans casse ; `*` et `?` acceptés. Exemple :
+`["gitlab*", "github.com"]`.
+
+`defaults.LastFolder` place ces libellés en fin de liste (vue par hôte et
+vue A-Z). Correspondance sans casse avec le `label`. Par défaut :
+`["Projects", "_old"]`. L'ordre du tableau fixe l'ordre relatif en bas.
+
 Au chargement, les clés de `defaults` qui ont une valeur par défaut et qui
 manquent dans le JSON sont ajoutées. Une clé déjà présente n'est pas modifiée.
 Le catalogue est `DEFAULT_SETTINGS` dans `src/foldersConfig.ts`.
@@ -137,30 +146,40 @@ une mise à jour.
 L'extension n'est **pas** active dans la fenêtre où tu édites le code.
 F5 ouvre une **seconde** fenêtre Cursor (Extension Development Host).
 
-1. Ouvre le dossier `vsCodeSSH` dans Cursor.
+1. Ouvre le dossier du projet dans Cursor.
 2. `npm install` puis `npm run compile`.
 3. Exécuter et déboguer (`Cmd+Shift+D`), configuration **Run Extension**, F5.
-   Les configs lancent l’Extension Development Host avec `--disable-extensions`
-   (seule l’extension du workspace est chargée). **Run Extension** et
-   **Run Extension (isolé)** posent `SSH_FOLDERS_DEV=1`.
+   **Par défaut**, la fenêtre de test lit et écrit le JSON réel
+   (`~/.ssh/extensions/ssh-folders.json`) et le fichier SSH config.
+   Le mode est fixé par `.vscode/ssh-folders-dev.mode` (`real` ou `sandbox`),
+   plus fiable que `SSH_FOLDERS_DEV` (l'env peut rester collée au process
+   Cursor après un ancien lancement).
+   **Run Extension (exemples)** / `npm run dev:host:exemples` → bac à sable.
+   **Run Extension (isolé)** ajoute aussi `--disable-extensions` : thème D2
+   Dark coupé, UI parfois noire.
 4. Dans la fenêtre Extension Development Host, ouvre **SSH - Folders**.
-   Le titre se termine par `· dev` et la vue montre les hôtes d'exemple.
 
-### Fichiers d'exemple
+Si F5 (ou Ctrl+F5) affiche *Extension host did not start in 10 seconds*
+(`debugBrk: true`), le débogueur Cursor n'attache pas. Contournement :
 
-`SSH_FOLDERS_DEV=1` n'est honoré que dans l'hôte de développement (F5).
-Un `.vsix` installé est en mode Production et ignore cette variable, même
-si elle est définie dans l'environnement.
+~~~bash
+npm run dev:host
+~~~
 
-La vue lit une copie des fichiers `examples/`, recréée à chaque lancement
-dans le stockage de l'extension. `~/.ssh/config`,
-`~/.ssh/extensions/ssh-folders.json`, le schéma à côté, l'historique des
-accès et le réglage `sshFolders.view` ne sont pas écrits. Pour revoir ces
-fichiers depuis F5, lance **Run Extension (config réelle)** (`SSH_FOLDERS_DEV=0`).
-Le VSIX installé les affiche toujours.
+Ou palette → *Tasks: Run Task* → **Run Extension Host (sans debug)**.
+Sinon : `npm run package` puis installer le `.vsix`.
 
-Ajouter ou supprimer un dossier en mode dev modifie seulement la copie,
-effacée au prochain F5.
+### Fichiers d'exemple (bac à sable)
+
+Activer avec **Run Extension (exemples)** ou `npm run dev:host:exemples`
+(écrit `sandbox` dans `.vscode/ssh-folders-dev.mode`). Un `.vsix` installé
+ignore ce mode.
+
+Dans ce mode, la vue lit une copie des fichiers `examples/`, recréée à
+chaque lancement dans le stockage de l'extension. `~/.ssh/config` et
+`~/.ssh/extensions/ssh-folders.json` ne sont pas écrits. Le titre de la
+vue se termine par `· dev`. Ajouter ou supprimer un dossier ne modifie
+que la copie, effacée au prochain lancement.
 
 Pour recompiler après une modification : `npm run compile`, puis relancer F5.
 

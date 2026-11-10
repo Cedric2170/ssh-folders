@@ -5,41 +5,9 @@
       "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
+      "runtimeExecutable": "${execPath}",
       "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}",
-        "--disable-extensions"
-      ],
-      "env": {
-        "SSH_FOLDERS_DEV": "1"
-      },
-      "outFiles": [
-        "${workspaceFolder}/out/**/*.js"
-      ],
-      "preLaunchTask": "compile"
-    },
-    {
-      "name": "Run Extension (isolé)",
-      "type": "extensionHost",
-      "request": "launch",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}",
-        "--disable-extensions"
-      ],
-      "env": {
-        "SSH_FOLDERS_DEV": "1"
-      },
-      "outFiles": [
-        "${workspaceFolder}/out/**/*.js"
-      ],
-      "preLaunchTask": "compile"
-    },
-    {
-      "name": "Run Extension (config réelle)",
-      "type": "extensionHost",
-      "request": "launch",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}",
-        "--disable-extensions"
+        "--extensionDevelopmentPath=${workspaceFolder}"
       ],
       "env": {
         "SSH_FOLDERS_DEV": "0"
@@ -47,7 +15,43 @@
       "outFiles": [
         "${workspaceFolder}/out/**/*.js"
       ],
-      "preLaunchTask": "compile"
+      "preLaunchTask": "pre-run-real",
+      "timeout": 60000
+    },
+    {
+      "name": "Run Extension (exemples)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}"
+      ],
+      "env": {
+        "SSH_FOLDERS_DEV": "1"
+      },
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js"
+      ],
+      "preLaunchTask": "pre-run-sandbox",
+      "timeout": 60000
+    },
+    {
+      "name": "Run Extension (isolé)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--disable-extensions"
+      ],
+      "env": {
+        "SSH_FOLDERS_DEV": "1"
+      },
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js"
+      ],
+      "preLaunchTask": "pre-run-sandbox",
+      "timeout": 60000
     }
   ]
 }

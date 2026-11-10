@@ -1,4 +1,9 @@
-import { folderLabel, type FolderEntry } from "./foldersConfig";
+import {
+  folderLabel,
+  lastFolderRank,
+  type FolderEntry,
+  type FoldersFile,
+} from "./foldersConfig";
 
 export type AzFolderRef = {
   alias: string;
@@ -75,8 +80,38 @@ export function sortHostAliases(aliases: readonly string[]): string[] {
   return [...aliases].sort(compareText);
 }
 
-export function sortFolderEntries(entries: readonly FolderEntry[]): FolderEntry[] {
+function compareByLastFolder(
+  aLabel: string,
+  bLabel: string,
+  data: FoldersFile | undefined
+): number {
+  const aRank = lastFolderRank(aLabel, data);
+  const bRank = lastFolderRank(bLabel, data);
+  const aLast = aRank >= 0;
+  const bLast = bRank >= 0;
+  if (aLast !== bLast) {
+    return aLast ? 1 : -1;
+  }
+  if (aLast && bLast && aRank !== bRank) {
+    return aRank - bRank;
+  }
+  return 0;
+}
+
+export function sortFolderEntries(
+  entries: readonly FolderEntry[],
+  options: { alphabetical?: boolean; data?: FoldersFile } = {}
+): FolderEntry[] {
+  const alphabetical = options.alphabetical !== false;
+  const data = options.data;
   return [...entries].sort((a, b) => {
+    const byLast = compareByLastFolder(folderLabel(a), folderLabel(b), data);
+    if (byLast !== 0) {
+      return byLast;
+    }
+    if (!alphabetical) {
+      return 0;
+    }
     const byName = compareText(displayFolderName(a), displayFolderName(b));
     if (byName !== 0) {
       return byName;
@@ -85,7 +120,19 @@ export function sortFolderEntries(entries: readonly FolderEntry[]): FolderEntry[
   });
 }
 
-function compareRefs(a: AzFolderRef, b: AzFolderRef): number {
+function compareRefs(
+  a: AzFolderRef,
+  b: AzFolderRef,
+  data: FoldersFile | undefined
+): number {
+  const byLast = compareByLastFolder(
+    folderLabel(a.entry),
+    folderLabel(b.entry),
+    data
+  );
+  if (byLast !== 0) {
+    return byLast;
+  }
   const byName = compareText(displayFolderName(a.entry), displayFolderName(b.entry));
   if (byName !== 0) {
     return byName;
@@ -97,11 +144,22 @@ function compareRefs(a: AzFolderRef, b: AzFolderRef): number {
   return a.entry.path.localeCompare(b.entry.path);
 }
 
+function nodeLastFolderRank(
+  node: AzNode,
+  data: FoldersFile | undefined
+): number {
+  if (node.kind === "leaf") {
+    return lastFolderRank(folderLabel(node.item.entry), data);
+  }
+  return lastFolderRank(node.name, data);
+}
+
 export function buildAzFolderTree(
   items: AzFolderRef[],
-  options: { sort?: boolean } = {}
+  options: { sort?: boolean; data?: FoldersFile } = {}
 ): AzNode[] {
   const sort = options.sort !== false;
+  const data = options.data;
   const buckets = new Map<string, AzFolderRef[]>();
   for (const item of items) {
     const stem = groupStem(folderLabel(item.entry));
@@ -113,7 +171,7 @@ export function buildAzFolderTree(
   const nodes: AzNode[] = [];
   for (const [stem, list] of buckets) {
     if (sort) {
-      list.sort(compareRefs);
+      list.sort((a, b) => compareRefs(a, b, data));
     }
     if (list.length === 1) {
       const item = list[0];
@@ -134,7 +192,33 @@ export function buildAzFolderTree(
   }
 
   if (sort) {
-    nodes.sort((a, b) => compareText(a.name, b.name));
+    nodes.sort((a, b) => {
+      const aRank = nodeLastFolderRank(a, data);
+      const bRank = nodeLastFolderRank(b, data);
+      const aLast = aRank >= 0;
+      const bLast = bRank >= 0;
+      if (aLast !== bLast) {
+        return aLast ? 1 : -1;
+      }
+      if (aLast && bLast && aRank !== bRank) {
+        return aRank - bRank;
+      }
+      return compareText(a.name, b.name);
+    });
+  } else if (data) {
+    nodes.sort((a, b) => {
+      const aRank = nodeLastFolderRank(a, data);
+      const bRank = nodeLastFolderRank(b, data);
+      const aLast = aRank >= 0;
+      const bLast = bRank >= 0;
+      if (aLast !== bLast) {
+        return aLast ? 1 : -1;
+      }
+      if (aLast && bLast && aRank !== bRank) {
+        return aRank - bRank;
+      }
+      return 0;
+    });
   }
   return nodes;
 }

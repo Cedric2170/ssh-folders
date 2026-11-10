@@ -41,6 +41,7 @@ Latest published release only.
 - Lecture de l'autorité Remote-SSH même si elle est encodée ou préfixée.
 - Tri alphabétique des hôtes et des dossiers (`defaults.SortAlphabetical`, vrai par défaut). Les derniers accès restent triés par date.
 - Les clés de `defaults` qui ont une valeur par défaut sont ajoutées au JSON si elles manquent.
+- Masquage d'hôtes SSH via `defaults.HiddenHosts` (ex. `gitlab*`).
 <!-- latest-changelog:end -->
 
 ## Français
@@ -51,7 +52,7 @@ Latest published release only.
 - Un clic sur un hôte ou un dossier demande à Remote-SSH d'ouvrir la connexion.
 - Les dossiers favoris s'ajoutent, se renomment et se suppriment depuis l'arbre.
 - Chaque entrée s'ouvre dans la fenêtre courante ou dans une nouvelle fenêtre.
-- La vue par hôte place les dossiers sous chaque hôte. Hôtes et dossiers sont en ordre alphabétique.
+- La vue par hôte place les dossiers sous chaque hôte. Hôtes et dossiers sont en ordre alphabétique ; `defaults.LastFolder` (ex. Projects, `_old`) reste en fin de liste.
 - La vue dossiers A-Z trie les noms et regroupe une même famille (`grafana` et `grafana-dev` sous Grafana).
 - La vue derniers accès liste les connexions récentes, de la plus fraîche à la plus ancienne. Retirer une entrée n'efface pas le favori.
 - Un bouton en haut de l'arbre passe d'une vue à l'autre.
@@ -70,7 +71,7 @@ Les favoris sont dans `~/.ssh/extensions/ssh-folders.json`. Si le schéma `remot
 
 Au premier lancement, si ce JSON n'existe pas encore, l'extension le crée à partir de `examples/ssh-folders.example.json`. Dans le dépôt, cet exemple pointe vers `../schemas/remote-folders.schema.json` pour que l'éditeur trouve le schéma. Le fichier installé reçoit `"$schema": "./remote-folders.schema.json"`, à côté de la copie du schéma. Un fichier déjà présent garde ses dossiers et ses valeurs. Au chargement, les clés de `defaults` qui ont une valeur par défaut et qui manquent sont ajoutées. Une clé déjà écrite n'est pas modifiée.
 
-L'exemple ne contient que les réglages déjà en place : `DefaultFolder`, `RecentLimit`, `ActiveColor`, `SortAlphabetical`, `path` et `label`. Il sera complété au fil des fonctions ajoutées.
+L'exemple ne contient que les réglages déjà en place : `DefaultFolder`, `RecentLimit`, `ActiveColor`, `SortAlphabetical`, `HiddenHosts`, `LastFolder`, `path` et `label`. Il sera complété au fil des fonctions ajoutées.
 
 Les hôtes `demo-docker` et `demo-web` sont fictifs. Les adresses `203.0.113.10` et `203.0.113.20` servent uniquement à la documentation. Pour les voir dans la vue par hôte, copie à la main les blocs de `examples/ssh-config.example` dans ton fichier SSH config. L'extension laisse ce fichier intact. La vue A-Z affiche ces dossiers dès que le JSON d'exemple est en place, car elle lit les favoris directement.
 
@@ -85,7 +86,9 @@ La clé (`demo-docker` dans l'exemple) est l'alias de la ligne `Host` dans `~/.s
     "DefaultFolder": "/opt/docker/projects",
     "RecentLimit": 20,
     "ActiveColor": "green",
-    "SortAlphabetical": true
+    "SortAlphabetical": true,
+    "HiddenHosts": [],
+    "LastFolder": ["Projects", "_old"]
   },
   "folders": {
     "demo-docker": [
@@ -100,6 +103,10 @@ La clé (`demo-docker` dans l'exemple) est l'alias de la ligne `Host` dans `~/.s
       {
         "path": "/opt/docker/projects/guacamole",
         "label": "Guacamole"
+      },
+      {
+        "path": "/opt/docker/projects/_old",
+        "label": "_old"
       }
     ],
     "demo-web": [
@@ -139,6 +146,10 @@ Le chemin est POSIX et absolu (`/...`).
 
 `defaults.SortAlphabetical` trie les hôtes SSH, les dossiers sous chaque hôte et la liste des dossiers. Vrai par défaut. `false` conserve l'ordre du fichier SSH config et du JSON. La vue derniers accès reste triée par date de connexion.
 
+`defaults.HiddenHosts` masque des alias Host dans l'arbre et dans le choix d'hôte. Liste vide par défaut. Correspondance sans casse ; `*` et `?` sont acceptés. Exemple : `["gitlab*", "github.com"]`.
+
+`defaults.LastFolder` place ces libellés en fin de liste (vue par hôte et vue A-Z). Correspondance sans casse avec le `label` (ou le nom du dossier). Par défaut : `["Projects", "_old"]`. L'ordre du tableau fixe l'ordre relatif en bas de liste.
+
 Autre emplacement du fichier de favoris : le réglage `sshFolders.configPath`.
 
 ## English
@@ -151,7 +162,7 @@ The pictures at the top follow `examples/ssh-folders.example.json`. Hosts `demo-
 - A click on a host or a folder asks Remote-SSH to open the connection.
 - Favorite folders can be added, renamed, and removed from the tree.
 - Each entry opens in the current window or in a new window.
-- The by-host view lists folders under each host. Hosts and folders are alphabetical.
+- The by-host view lists folders under each host. Hosts and folders are alphabetical; `defaults.LastFolder` (e.g. Projects, `_old`) stays at the end.
 - The A-Z view sorts names and groups a family together (`grafana` and `grafana-dev` under Grafana).
 - The recent view lists the latest connections, newest first. Removing an entry does not delete the favorite.
 - A button at the top of the tree switches from one view to the next.
@@ -170,7 +181,7 @@ Favorites live in `~/.ssh/extensions/ssh-folders.json`. If `remote-folders.schem
 
 On first launch, if that JSON file does not exist yet, the extension creates it from `examples/ssh-folders.example.json`. In the repository, that example points at `../schemas/remote-folders.schema.json` so the editor can find the schema. The installed file gets `"$schema": "./remote-folders.schema.json"`, next to the copied schema. An existing file keeps its folders and its values. On load, `defaults` keys that have a default value and are missing are added. A key that is already set is left as it is.
 
-The example only includes settings that already exist: `DefaultFolder`, `RecentLimit`, `ActiveColor`, `SortAlphabetical`, `path`, and `label`. It will grow as new features land.
+The example only includes settings that already exist: `DefaultFolder`, `RecentLimit`, `ActiveColor`, `SortAlphabetical`, `HiddenHosts`, `LastFolder`, `path`, and `label`. It will grow as new features land.
 
 Hosts `demo-docker` and `demo-web` are fictional. Addresses `203.0.113.10` and `203.0.113.20` are documentation addresses only. To see them in the by-host view, paste the blocks from `examples/ssh-config.example` into your SSH config yourself. The extension leaves that file untouched. The A-Z view still lists these folders once the example JSON is in place, because that view reads the favorites directly.
 
@@ -185,7 +196,9 @@ The key (`demo-docker` in the example) is the `Host` alias from `~/.ssh/config`,
     "DefaultFolder": "/opt/docker/projects",
     "RecentLimit": 20,
     "ActiveColor": "green",
-    "SortAlphabetical": true
+    "SortAlphabetical": true,
+    "HiddenHosts": [],
+    "LastFolder": ["Projects", "_old"]
   },
   "folders": {
     "demo-docker": [
@@ -200,6 +213,10 @@ The key (`demo-docker` in the example) is the `Host` alias from `~/.ssh/config`,
       {
         "path": "/opt/docker/projects/guacamole",
         "label": "Guacamole"
+      },
+      {
+        "path": "/opt/docker/projects/_old",
+        "label": "_old"
       }
     ],
     "demo-web": [
@@ -238,5 +255,9 @@ The path is POSIX and absolute (`/...`).
 `defaults.ActiveColor` colors that connection. Green by default (`green`). Other names: `blue`, `orange`, `red`, `purple`, `yellow`. A hexadecimal code is used as-is, for example `#7c3aed`.
 
 `defaults.SortAlphabetical` sorts SSH hosts, the folders under each host, and the folder list. True by default. `false` keeps the order of the SSH config file and of the JSON. The recent view stays sorted by connection date.
+
+`defaults.HiddenHosts` hides Host aliases from the tree and from the host picker. Empty list by default. Matching is case-insensitive; `*` and `?` are accepted. Example: `["gitlab*", "github.com"]`.
+
+`defaults.LastFolder` puts those labels at the end of the list (by-host and A-Z views). Matching is case-insensitive against the `label` (or folder name). Default: `["Projects", "_old"]`. Array order sets the relative order at the bottom.
 
 To store favorites elsewhere, set `sshFolders.configPath`.
