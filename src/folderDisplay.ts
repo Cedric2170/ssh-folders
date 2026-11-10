@@ -156,10 +156,28 @@ function nodeLastFolderRank(
 
 export function buildAzFolderTree(
   items: AzFolderRef[],
-  options: { sort?: boolean; data?: FoldersFile } = {}
+  options: { sort?: boolean; group?: boolean; data?: FoldersFile } = {}
 ): AzNode[] {
   const sort = options.sort !== false;
+  const group = options.group !== false;
   const data = options.data;
+
+  if (!group) {
+    const leaves: AzLeaf[] = items.map((item) => ({
+      kind: "leaf",
+      name: displayFolderName(item.entry),
+      item,
+    }));
+    if (sort) {
+      leaves.sort((a, b) => compareRefs(a.item, b.item, data));
+    } else if (data) {
+      leaves.sort((a, b) =>
+        compareByLastFolder(folderLabel(a.item.entry), folderLabel(b.item.entry), data)
+      );
+    }
+    return leaves;
+  }
+
   const buckets = new Map<string, AzFolderRef[]>();
   for (const item of items) {
     const stem = groupStem(folderLabel(item.entry));

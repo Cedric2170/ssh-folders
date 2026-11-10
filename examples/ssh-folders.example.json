@@ -5,6 +5,7 @@
     "RecentLimit": 20,
     "ActiveColor": "green",
     "SortAlphabetical": true,
+    "GroupSameName": true,
     "HiddenHosts": [],
     "LastFolder": ["Projects", "_old"]
   },

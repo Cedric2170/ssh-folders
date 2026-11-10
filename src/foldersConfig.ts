@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS = {
   RecentLimit: DEFAULT_RECENT_LIMIT,
   ActiveColor: "green",
   SortAlphabetical: true,
+  GroupSameName: true,
   HiddenHosts: [] as string[],
   LastFolder: ["Projects", "_old"] as string[],
 } as const;
@@ -60,6 +61,7 @@ export interface FolderDefaults {
   RecentLimit?: number;
   ActiveColor?: string;
   SortAlphabetical?: boolean;
+  GroupSameName?: boolean;
   HiddenHosts?: string[];
   LastFolder?: string[];
   [key: string]: unknown;
@@ -264,6 +266,11 @@ function normalizeDefaults(raw: unknown): FolderDefaults | undefined {
     defaults.SortAlphabetical = rec.SortAlphabetical;
   } else {
     delete defaults.SortAlphabetical;
+  }
+  if (typeof rec.GroupSameName === "boolean") {
+    defaults.GroupSameName = rec.GroupSameName;
+  } else {
+    delete defaults.GroupSameName;
   }
   if (Array.isArray(rec.HiddenHosts)) {
     defaults.HiddenHosts = rec.HiddenHosts.filter(
@@ -493,6 +500,11 @@ export function defaultFolderPath(data: FoldersFile): string | undefined {
 /** Vrai par défaut. `false` conserve l'ordre du fichier SSH config et du JSON. */
 export function sortAlphabetical(data: FoldersFile | undefined): boolean {
   return data?.defaults?.SortAlphabetical !== false;
+}
+
+/** Vrai par défaut. `false` laisse chaque dossier séparé dans la vue A-Z. */
+export function groupSameName(data: FoldersFile | undefined): boolean {
+  return data?.defaults?.GroupSameName !== false;
 }
 
 export function hiddenHostPatterns(data: FoldersFile | undefined): string[] {

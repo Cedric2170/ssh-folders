@@ -4,6 +4,7 @@ import {
   findFolderEntry,
   folderLabel,
   foldersForHost,
+  groupSameName,
   isHostHidden,
   recentLimit,
   sortAlphabetical,
@@ -275,6 +276,7 @@ function listFoldersAlphabetical(): SshFoldersItem[] {
 
   return buildAzFolderTree(refs, {
     sort: sortAlphabetical(data),
+    group: groupSameName(data),
     data,
   }).map((node) => {
     if (node.kind === "leaf") {

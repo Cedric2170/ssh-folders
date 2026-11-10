@@ -74,6 +74,10 @@ il est stocké dans l'état global de l'extension Cursor / VS Code.
 et la liste des dossiers. Vrai par défaut. `false` conserve l'ordre du fichier
 SSH config et du JSON. La vue **Derniers accès** reste triée par date.
 
+`defaults.GroupSameName` regroupe dans la vue A-Z les dossiers d'une même
+famille (`grafana` et `grafana-dev`). Vrai par défaut. `false` affiche chaque
+dossier séparément.
+
 `defaults.HiddenHosts` masque des alias Host dans l'arbre, les vues dossiers /
 derniers accès, et le choix d'hôte du bouton +. Liste vide par défaut.
 Correspondance sans casse ; `*` et `?` acceptés. Exemple :
@@ -104,8 +108,9 @@ Ensuite :
 ### Vues
 
 La vue **Dossiers A-Z** trie alphabétiquement (sauf si `SortAlphabetical` vaut `false`), affiche `Census-Agent`
-(majuscule en début de mot, après un espace ou un tiret) et regroupe les
-noms de la même famille (`census-agent`, `census-dev` sous **Census**).
+(majuscule en début de mot, après un espace ou un tiret) et, si
+`GroupSameName` est vrai, regroupe les noms de la même famille
+(`census-agent`, `census-dev` sous **Census**).
 
 La vue **Derniers accès** liste les dernières connexions (hôte ou dossier),
 triées par date. Un bouton **-** à droite retire une entrée de l'historique,

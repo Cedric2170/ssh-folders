@@ -14,6 +14,7 @@ Le même script met à jour dans `README.md` (Marketplace) uniquement la derniè
 - Tri alphabétique des hôtes et des dossiers (`defaults.SortAlphabetical`, vrai par défaut). Les derniers accès restent triés par date.
 - Les clés de `defaults` qui ont une valeur par défaut sont ajoutées au JSON si elles manquent.
 - Masquage d'hôtes SSH via `defaults.HiddenHosts` (ex. `gitlab*`).
+- Regroupement A-Z désactivable via `defaults.GroupSameName` (vrai par défaut).
 
 ## 0.2.6
 

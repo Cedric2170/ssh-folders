@@ -30,6 +30,11 @@
           "default": true,
           "description": "Trie les hôtes SSH, les dossiers sous chaque hôte et la liste des dossiers. Vrai par défaut. La vue derniers accès reste triée par date de connexion."
         },
+        "GroupSameName": {
+          "type": "boolean",
+          "default": true,
+          "description": "Dans la vue dossiers A-Z, regroupe les dossiers d'une même famille (ex. grafana et grafana-dev). Vrai par défaut. false affiche chaque dossier séparément."
+        },
         "HiddenHosts": {
           "type": "array",
           "default": [],
