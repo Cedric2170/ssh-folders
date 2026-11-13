@@ -154,7 +154,7 @@ Le chemin est POSIX et absolu (`/...`).
 
 `defaults.LastFolder` place ces libellés en fin de liste (vue par hôte et vue A-Z). Correspondance sans casse avec le `label` (ou le nom du dossier). Par défaut : `["Projects", "_old"]`. L'ordre du tableau fixe l'ordre relatif en bas de liste.
 
-Autre emplacement du fichier de favoris : le réglage `sshFolders.configPath`.
+Autre emplacement du fichier (favoris + `defaults`) : le réglage `sshFolders.configPath`.
 
 ## English
 
@@ -267,4 +267,4 @@ The path is POSIX and absolute (`/...`).
 
 `defaults.LastFolder` puts those labels at the end of the list (by-host and A-Z views). Matching is case-insensitive against the `label` (or folder name). Default: `["Projects", "_old"]`. Array order sets the relative order at the bottom.
 
-To store favorites elsewhere, set `sshFolders.configPath`.
+To store favorites and `defaults` elsewhere, set `sshFolders.configPath`.

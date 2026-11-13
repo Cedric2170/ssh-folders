@@ -240,7 +240,7 @@
         "sshFolders.configPath": {
           "type": "string",
           "default": "",
-          "description": "Chemin du fichier JSON des dossiers distants. Vide = ~/.ssh/extensions/ssh-folders.json"
+          "description": "Chemin du fichier JSON (dossiers favoris et paramètres defaults). Vide = ~/.ssh/extensions/ssh-folders.json. Les réglages métier ne sont pas dans les Settings VS Code : éditez ce fichier (commande « Ouvrir la config des dossiers »)."
         },
         "sshFolders.view": {
           "type": "string",
