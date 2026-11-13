@@ -170,52 +170,52 @@
       "view/item/context": [
         {
           "command": "sshFolders.openInCurrentWindow",
-          "when": "view == sshFolders && (viewItem == host || viewItem == recentHost)",
+          "when": "view == sshFolders && (viewItem == host || viewItem == recentHost || viewItem == localHost || viewItem == recentLocalHost)",
           "group": "inline@1"
         },
         {
           "command": "sshFolders.openInNewWindow",
-          "when": "view == sshFolders && (viewItem == host || viewItem == recentHost)",
+          "when": "view == sshFolders && (viewItem == host || viewItem == recentHost || viewItem == localHost || viewItem == recentLocalHost)",
           "group": "inline@2"
         },
         {
           "command": "sshFolders.addFolder",
-          "when": "view == sshFolders && viewItem == host",
+          "when": "view == sshFolders && (viewItem == host || viewItem == localHost)",
           "group": "inline@3"
         },
         {
           "command": "sshFolders.openInCurrentWindow",
-          "when": "view == sshFolders && (viewItem == folder || viewItem == recentFolder)",
+          "when": "view == sshFolders && (viewItem == folder || viewItem == recentFolder || viewItem == localFolder || viewItem == recentLocalFolder)",
           "group": "inline@1"
         },
         {
           "command": "sshFolders.openInNewWindow",
-          "when": "view == sshFolders && (viewItem == folder || viewItem == recentFolder)",
+          "when": "view == sshFolders && (viewItem == folder || viewItem == recentFolder || viewItem == localFolder || viewItem == recentLocalFolder)",
           "group": "inline@2"
         },
         {
           "command": "sshFolders.removeRecent",
-          "when": "view == sshFolders && (viewItem == recentHost || viewItem == recentFolder)",
+          "when": "view == sshFolders && (viewItem == recentHost || viewItem == recentFolder || viewItem == recentLocalHost || viewItem == recentLocalFolder)",
           "group": "inline@9"
         },
         {
           "command": "sshFolders.openInCurrentWindow",
-          "when": "view == sshFolders && (viewItem == host || viewItem == folder || viewItem == recentHost || viewItem == recentFolder)",
+          "when": "view == sshFolders && (viewItem == host || viewItem == folder || viewItem == recentHost || viewItem == recentFolder || viewItem == localHost || viewItem == localFolder || viewItem == recentLocalHost || viewItem == recentLocalFolder)",
           "group": "0_connect@1"
         },
         {
           "command": "sshFolders.openInNewWindow",
-          "when": "view == sshFolders && (viewItem == host || viewItem == folder || viewItem == recentHost || viewItem == recentFolder)",
+          "when": "view == sshFolders && (viewItem == host || viewItem == folder || viewItem == recentHost || viewItem == recentFolder || viewItem == localHost || viewItem == localFolder || viewItem == recentLocalHost || viewItem == recentLocalFolder)",
           "group": "0_connect@2"
         },
         {
           "command": "sshFolders.renameFolder",
-          "when": "view == sshFolders && viewItem == folder",
+          "when": "view == sshFolders && (viewItem == folder || viewItem == localFolder)",
           "group": "1_edit"
         },
         {
           "command": "sshFolders.removeFolder",
-          "when": "view == sshFolders && viewItem == folder",
+          "when": "view == sshFolders && (viewItem == folder || viewItem == localFolder)",
           "group": "1_edit"
         }
       ],
@@ -286,6 +286,7 @@
     "compile": "tsc -p ./",
     "dev:host": "npm run compile && printf 'real\\n' > .vscode/ssh-folders-dev.mode && cursor --extensionDevelopmentPath=\"$PWD\"",
     "dev:host:exemples": "npm run compile && printf 'sandbox\\n' > .vscode/ssh-folders-dev.mode && cursor --extensionDevelopmentPath=\"$PWD\"",
+    "dev:host:exemples:reset": "npm run compile && printf 'sandbox\\n' > .vscode/ssh-folders-dev.mode && SSH_FOLDERS_DEV_RESET=1 cursor --extensionDevelopmentPath=\"$PWD\"",
     "watch": "tsc -watch -p ./",
     "package": "mkdir -p vsix && node scripts/vsix-readme.js && vsce package -o vsix",
     "publish:vscode": "npm run package && vsce publish -i vsix/ssh-folders-$(node -p \"require('./package.json').version\").vsix",

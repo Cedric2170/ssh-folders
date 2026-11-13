@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SSH - Folders",
-  "description": "Dossiers distants favoris, indexés par alias Host du fichier SSH config.",
+  "description": "Dossiers distants favoris (alias Host SSH) et dossiers locaux du poste de base (local[].VirtualHost).",
   "type": "object",
   "additionalProperties": false,
   "required": ["folders"],
@@ -99,6 +99,32 @@
               "pattern": "^/",
               "description": "Chemin POSIX absolu sur l'hôte distant (pas de ~)."
             }
+          }
+        }
+      }
+    },
+    "local": {
+      "type": "array",
+      "description": "Dossiers locaux du poste de base, regroupés par VirtualHost (serveur virtuel affiché comme un hôte SSH). Fichiers individuels non pris en charge pour l'instant.",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["VirtualHost", "path"],
+        "properties": {
+          "VirtualHost": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Nom du serveur virtuel local (ex. Prod). Plusieurs dossiers peuvent partager le même VirtualHost."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Chemin local absolu ou commençant par ~ (ex. ~/Documents/Projets)."
+          },
+          "label": {
+            "type": "string",
+            "description": "Libellé affiché. Si omis, le nom du dossier est utilisé."
           }
         }
       }

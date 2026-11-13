@@ -180,11 +180,12 @@ Activer avec **Run Extension (exemples)** ou `npm run dev:host:exemples`
 (écrit `sandbox` dans `.vscode/ssh-folders-dev.mode`). Un `.vsix` installé
 ignore ce mode.
 
-Dans ce mode, la vue lit une copie des fichiers `examples/`, recréée à
-chaque lancement dans le stockage de l'extension. `~/.ssh/config` et
-`~/.ssh/extensions/ssh-folders.json` ne sont pas écrits. Le titre de la
-vue se termine par `· dev`. Ajouter ou supprimer un dossier ne modifie
-que la copie, effacée au prochain lancement.
+Dans ce mode, la vue lit une copie des fichiers `examples/` dans le
+stockage de l'extension (semée une seule fois si absente). `~/.ssh/config`
+et `~/.ssh/extensions/ssh-folders.json` ne sont pas écrits. Le titre de la
+vue se termine par `· dev`. Ajouter ou supprimer un dossier modifie cette
+copie et est conservé entre F5 / relances. Pour repartir des exemples :
+`npm run dev:host:exemples:reset` (`SSH_FOLDERS_DEV_RESET=1`).
 
 Pour recompiler après une modification : `npm run compile`, puis relancer F5.
 

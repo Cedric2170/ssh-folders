@@ -1,12 +1,17 @@
 import * as vscode from "vscode";
 import {
   cachedFoldersFile,
+  expandLocalPath,
   findFolderEntry,
+  findLocalFolderEntry,
   folderLabel,
   foldersForHost,
   groupSameName,
   isHostHidden,
+  localFoldersForHost,
+  localVirtualHosts,
   recentLimit,
+  sameLocalPath,
   sortAlphabetical,
   visibleHostAliases,
   type FolderEntry,
@@ -15,7 +20,6 @@ import {
   buildAzFolderTree,
   displayFolderName,
   sortFolderEntries,
-  sortHostAliases,
   type AzFolderRef,
 } from "./folderDisplay";
 import {
@@ -41,11 +45,33 @@ function refreshActiveDecorations(): void {
   activeDecorationEmitter.fire(undefined);
 }
 
-function hostIsActive(alias: string): boolean {
+function isActiveLocalFolder(folderPath: string): boolean {
+  const target = expandLocalPath(folderPath);
+  return (vscode.workspace.workspaceFolders ?? []).some(
+    (folder) =>
+      folder.uri.scheme === "file" &&
+      sameLocalPath(folder.uri.fsPath, target)
+  );
+}
+
+function hostIsActive(alias: string, local: boolean): boolean {
+  if (local) {
+    const data = cachedFoldersFile();
+    return localFoldersForHost(data, alias).some((entry) =>
+      isActiveLocalFolder(entry.path)
+    );
+  }
   return isActiveSshHost(alias) || isHostInOpenWindow(alias);
 }
 
-function folderIsActive(alias: string, folderPath: string): boolean {
+function folderIsActive(
+  alias: string,
+  folderPath: string,
+  local: boolean
+): boolean {
+  if (local) {
+    return isActiveLocalFolder(folderPath);
+  }
   return (
     isActiveRemoteFolder(alias, folderPath) ||
     isFolderInOpenWindow(alias, folderPath)
@@ -83,29 +109,57 @@ export type OpenTarget = {
   kind: "host" | "folder";
   alias: string;
   path?: string;
+  local?: boolean;
 };
 
 export class HostItem extends vscode.TreeItem {
-  readonly contextValue: "host" | "recentHost";
+  readonly contextValue:
+    | "host"
+    | "recentHost"
+    | "localHost"
+    | "recentLocalHost";
   readonly kind = "host" as const;
+  readonly local: boolean;
 
   constructor(
     public readonly alias: string,
-    options: { description?: string; tooltip?: string; recent?: boolean } = {}
+    options: {
+      description?: string;
+      tooltip?: string;
+      recent?: boolean;
+      local?: boolean;
+    } = {}
   ) {
     super(alias, vscode.TreeItemCollapsibleState.Collapsed);
-    this.contextValue = options.recent ? "recentHost" : "host";
-    this.id = options.recent ? `recent:host:${alias}` : `host:${alias}`;
-    const active = hostIsActive(alias);
-    this.iconPath = activeIcon("server", active);
-    this.tooltip = options.tooltip ?? alias;
+    this.local = options.local === true;
+    if (this.local) {
+      this.contextValue = options.recent ? "recentLocalHost" : "localHost";
+      this.id = options.recent
+        ? `recent:localHost:${alias}`
+        : `localHost:${alias}`;
+    } else {
+      this.contextValue = options.recent ? "recentHost" : "host";
+      this.id = options.recent ? `recent:host:${alias}` : `host:${alias}`;
+    }
+    const active = hostIsActive(alias, this.local);
+    this.iconPath = activeIcon(
+      this.local ? "device-desktop" : "server",
+      active
+    );
+    this.tooltip =
+      options.tooltip ??
+      (this.local ? `${alias} (local)` : alias);
     if (active) {
       this.resourceUri = activeResource(this.id);
-      this.tooltip = `${this.tooltip}\nConnexion active`;
+      this.tooltip = `${this.tooltip}\n${
+        this.local ? "Dossier local ouvert" : "Connexion active"
+      }`;
       this.accessibilityInformation = {
         label: options.description
-          ? `${alias}, ${options.description}, connexion active`
-          : `${alias}, connexion active`,
+          ? `${alias}, ${options.description}, ${
+              this.local ? "local ouvert" : "connexion active"
+            }`
+          : `${alias}, ${this.local ? "local ouvert" : "connexion active"}`,
       };
     }
     if (options.description) {
@@ -114,17 +168,28 @@ export class HostItem extends vscode.TreeItem {
       this.command = {
         command: "sshFolders.openInNewWindow",
         title: "Ouvrir dans une nouvelle fenêtre",
-        arguments: [{ kind: "host", alias } satisfies OpenTarget],
+        arguments: [
+          {
+            kind: "host",
+            alias,
+            ...(this.local ? { local: true } : {}),
+          } satisfies OpenTarget,
+        ],
       };
     }
   }
 }
 
 export class FolderItem extends vscode.TreeItem {
-  readonly contextValue: "folder" | "recentFolder";
+  readonly contextValue:
+    | "folder"
+    | "recentFolder"
+    | "localFolder"
+    | "recentLocalFolder";
   readonly kind = "folder" as const;
   readonly path: string;
   readonly active: boolean;
+  readonly local: boolean;
 
   constructor(
     public readonly alias: string,
@@ -135,28 +200,47 @@ export class FolderItem extends vscode.TreeItem {
       description?: string;
       tooltip?: string;
       recent?: boolean;
+      local?: boolean;
     } = {}
   ) {
     super(
       options.title ?? folderLabel(entry),
       vscode.TreeItemCollapsibleState.None
     );
-    this.contextValue = options.recent ? "recentFolder" : "folder";
+    this.local = options.local === true;
+    if (this.local) {
+      this.contextValue = options.recent ? "recentLocalFolder" : "localFolder";
+      this.id = options.recent
+        ? `recent:localFolder:${alias}:${entry.path}`
+        : `localFolder:${alias}:${entry.path}`;
+    } else {
+      this.contextValue = options.recent ? "recentFolder" : "folder";
+      this.id = options.recent
+        ? `recent:folder:${alias}:${entry.path}`
+        : `folder:${alias}:${entry.path}`;
+    }
     this.path = entry.path;
-    this.active = folderIsActive(alias, entry.path);
-    this.id = options.recent
-      ? `recent:folder:${alias}:${entry.path}`
-      : `folder:${alias}:${entry.path}`;
-    this.iconPath = activeIcon("symbol-folder", this.active);
+    this.active = folderIsActive(alias, entry.path, this.local);
+    this.iconPath = activeIcon(
+      this.local ? "folder" : "symbol-folder",
+      this.active
+    );
     this.command = {
       command: "sshFolders.openInNewWindow",
       title: "Ouvrir dans une nouvelle fenêtre",
-      arguments: [{ kind: "folder", alias, path: entry.path } satisfies OpenTarget],
+      arguments: [
+        {
+          kind: "folder",
+          alias,
+          path: entry.path,
+          ...(this.local ? { local: true } : {}),
+        } satisfies OpenTarget,
+      ],
     };
     if (options.description !== undefined) {
       this.description = options.description;
     } else if (options.flat) {
-      this.description = alias;
+      this.description = this.local ? `${alias} · local` : alias;
     } else {
       this.description = entry.path;
     }
@@ -259,6 +343,7 @@ function toFlatFolderItem(ref: AzFolderRef): FolderItem {
   return new FolderItem(ref.alias, ref.entry, {
     flat: true,
     title: displayFolderName(ref.entry),
+    local: ref.local,
   });
 }
 
@@ -271,6 +356,18 @@ function listFoldersAlphabetical(): SshFoldersItem[] {
     }
     for (const entry of entries) {
       refs.push({ alias, entry });
+    }
+  }
+  for (const alias of localVirtualHosts(data)) {
+    if (isHostHidden(alias, data)) {
+      continue;
+    }
+    for (const entry of localFoldersForHost(data, alias)) {
+      refs.push({
+        alias,
+        entry: { path: entry.path, ...(entry.label ? { label: entry.label } : {}) },
+        local: true,
+      });
     }
   }
 
@@ -305,12 +402,17 @@ function listRecentItems(): SshFoldersItem[] {
       continue;
     }
     const relative = formatRelativeAccess(access.at);
+    const local = access.local === true;
     if (access.kind === "host") {
       items.push(
         new HostItem(access.alias, {
           description: relative,
-          tooltip: recentTooltip(access, access.alias),
+          tooltip: recentTooltip(
+            access,
+            local ? `${access.alias} (local)` : access.alias
+          ),
           recent: true,
+          local,
         })
       );
       continue;
@@ -318,19 +420,61 @@ function listRecentItems(): SshFoldersItem[] {
     if (!access.path) {
       continue;
     }
-    const entry =
-      findFolderEntry(data, access.alias, access.path) ?? { path: access.path };
+    const entry = local
+      ? findLocalFolderEntry(data, access.alias, access.path) ?? {
+          path: access.path,
+        }
+      : findFolderEntry(data, access.alias, access.path) ?? {
+          path: access.path,
+        };
     items.push(
       new FolderItem(access.alias, entry, {
         flat: true,
         title: displayFolderName(entry),
-        description: `${access.alias} · ${relative}`,
+        description: `${access.alias}${local ? " · local" : ""} · ${relative}`,
         tooltip: recentTooltip(access, `${access.alias}:${access.path}`),
         recent: true,
+        local,
       })
     );
   }
   return items;
+}
+
+function listByHostRoots(hostsReady: boolean): SshFoldersItem[] {
+  const aliases = cachedHostAliases();
+  if (aliases === undefined && !hostsReady) {
+    return [new StatusItem("Chargement…")];
+  }
+  const data = cachedFoldersFile();
+  const sshHosts = visibleHostAliases(aliases ?? [], data);
+  const localHosts = visibleHostAliases(localVirtualHosts(data), data);
+  const sshSet = new Set(sshHosts.map((alias) => alias.toLowerCase()));
+  const roots: HostItem[] = [
+    ...sshHosts.map((alias) => new HostItem(alias)),
+    ...localHosts
+      .filter((alias) => !sshSet.has(alias.toLowerCase()))
+      .map((alias) => new HostItem(alias, { local: true })),
+  ];
+  // Même nom SSH + VirtualHost : les deux apparaissent (icônes distinctes).
+  for (const alias of localHosts) {
+    if (sshSet.has(alias.toLowerCase())) {
+      roots.push(new HostItem(alias, { local: true }));
+    }
+  }
+  if (sortAlphabetical(data)) {
+    roots.sort((a, b) => {
+      const byName = a.alias.localeCompare(b.alias, "fr", {
+        sensitivity: "base",
+        numeric: true,
+      });
+      if (byName !== 0) {
+        return byName;
+      }
+      return Number(a.local) - Number(b.local);
+    });
+  }
+  return roots;
 }
 
 export class SshFoldersTreeProvider
@@ -366,22 +510,35 @@ export class SshFoldersTreeProvider
         if (mode === "recent") {
           return listRecentItems();
         }
-        const aliases = cachedHostAliases();
-        if (aliases === undefined && !this.hostsReady) {
-          return [new StatusItem("Chargement…")];
-        }
-        const data = cachedFoldersFile();
-        const hosts = visibleHostAliases(aliases ?? [], data);
-        const ordered = sortAlphabetical(data) ? sortHostAliases(hosts) : hosts;
-        return ordered.map((alias) => new HostItem(alias));
+        return listByHostRoots(this.hostsReady);
       }
 
       if (element instanceof FolderGroupItem) {
         return element.children;
       }
 
-      if (element.contextValue === "host" && getViewMode() === "byHost") {
+      if (
+        element instanceof HostItem &&
+        (element.contextValue === "host" ||
+          element.contextValue === "localHost") &&
+        getViewMode() === "byHost"
+      ) {
         const data = cachedFoldersFile() ?? { folders: {} };
+        if (element.local) {
+          const folders = localFoldersForHost(data, element.alias).map(
+            (entry) => ({
+              path: entry.path,
+              ...(entry.label ? { label: entry.label } : {}),
+            })
+          );
+          const ordered = sortFolderEntries(folders, {
+            alphabetical: sortAlphabetical(data),
+            data,
+          });
+          return ordered.map(
+            (entry) => new FolderItem(element.alias, entry, { local: true })
+          );
+        }
         const folders = foldersForHost(data, element.alias);
         const ordered = sortFolderEntries(folders, {
           alphabetical: sortAlphabetical(data),

@@ -50,7 +50,8 @@ Latest published release only.
 ### Fonctionnalités
 
 - Les hôtes viennent du fichier SSH config (`~/.ssh/config`, ou `remote.SSH.configFile` s'il est défini).
-- Un clic sur un hôte ou un dossier demande à Remote-SSH d'ouvrir la connexion.
+- Un clic sur un hôte ou un dossier distant demande à Remote-SSH d'ouvrir la connexion.
+- Les dossiers locaux du poste de base se rangent sous un `VirtualHost` (serveur virtuel) dans `local[]`.
 - Les dossiers favoris s'ajoutent, se renomment et se suppriment depuis l'arbre.
 - Chaque entrée s'ouvre dans la fenêtre courante ou dans une nouvelle fenêtre.
 - La vue par hôte place les dossiers sous chaque hôte. Hôtes et dossiers sont en ordre alphabétique ; `defaults.LastFolder` (ex. Projects, `_old`) reste en fin de liste.
@@ -72,7 +73,7 @@ Les favoris sont dans `~/.ssh/extensions/ssh-folders.json`. Si le schéma `remot
 
 Au premier lancement, si ce JSON n'existe pas encore, l'extension le crée à partir de `examples/ssh-folders.example.json`. Dans le dépôt, cet exemple pointe vers `../schemas/remote-folders.schema.json` pour que l'éditeur trouve le schéma. Le fichier installé reçoit `"$schema": "./remote-folders.schema.json"`, à côté de la copie du schéma. Un fichier déjà présent garde ses dossiers et ses valeurs. Au chargement, les clés de `defaults` qui ont une valeur par défaut et qui manquent sont ajoutées. Une clé déjà écrite n'est pas modifiée.
 
-L'exemple ne contient que les réglages déjà en place : `DefaultFolder`, `RecentLimit`, `ActiveColor`, `SortAlphabetical`, `GroupSameName`, `HiddenHosts`, `LastFolder`, `path` et `label`. Il sera complété au fil des fonctions ajoutées.
+L'exemple ne contient que les réglages déjà en place : `DefaultFolder`, `RecentLimit`, `ActiveColor`, `SortAlphabetical`, `GroupSameName`, `HiddenHosts`, `LastFolder`, `local` (`VirtualHost`, `path`, `label`), et les dossiers SSH. Il sera complété au fil des fonctions ajoutées.
 
 Les hôtes `demo-docker` et `demo-web` sont fictifs. Les adresses `203.0.113.10` et `203.0.113.20` servent uniquement à la documentation. Pour les voir dans la vue par hôte, copie à la main les blocs de `examples/ssh-config.example` dans ton fichier SSH config. L'extension laisse ce fichier intact. La vue A-Z affiche ces dossiers dès que le JSON d'exemple est en place, car elle lit les favoris directement.
 
@@ -92,6 +93,23 @@ La clé (`demo-docker` dans l'exemple) est l'alias de la ligne `Host` dans `~/.s
     "HiddenHosts": [],
     "LastFolder": ["Projects", "_old"]
   },
+  "local": [
+    {
+      "VirtualHost": "Prod",
+      "path": "~/Documents/Projets",
+      "label": "Projets"
+    },
+    {
+      "VirtualHost": "Prod",
+      "path": "~/Documents/Notes",
+      "label": "Notes"
+    },
+    {
+      "VirtualHost": "Dev",
+      "path": "~/dev/sandbox",
+      "label": "Sandbox"
+    }
+  ],
   "folders": {
     "demo-docker": [
       {
@@ -123,6 +141,8 @@ La clé (`demo-docker` dans l'exemple) est l'alias de la ligne `Host` dans `~/.s
   }
 }
 ~~~
+
+`local` liste les dossiers du poste de base. `VirtualHost` est le nom du groupe affiché comme un serveur (ex. `Prod`). `path` est un chemin local absolu ou `~/...`. Les fichiers individuels ne sont pas pris en charge pour l'instant.
 
 Modèle SSH, à coller soi-même. Il correspond à `examples/ssh-config.example`.
 
@@ -163,7 +183,8 @@ The pictures at the top follow `examples/ssh-folders.example.json`. Hosts `demo-
 ### Features
 
 - Hosts come from the SSH config file (`~/.ssh/config`, or `remote.SSH.configFile` when that setting is set).
-- A click on a host or a folder asks Remote-SSH to open the connection.
+- A click on a remote host or folder asks Remote-SSH to open the connection.
+- Local folders on this machine are grouped under a `VirtualHost` in `local[]`.
 - Favorite folders can be added, renamed, and removed from the tree.
 - Each entry opens in the current window or in a new window.
 - The by-host view lists folders under each host. Hosts and folders are alphabetical; `defaults.LastFolder` (e.g. Projects, `_old`) stays at the end.
@@ -185,7 +206,7 @@ Favorites live in `~/.ssh/extensions/ssh-folders.json`. If `remote-folders.schem
 
 On first launch, if that JSON file does not exist yet, the extension creates it from `examples/ssh-folders.example.json`. In the repository, that example points at `../schemas/remote-folders.schema.json` so the editor can find the schema. The installed file gets `"$schema": "./remote-folders.schema.json"`, next to the copied schema. An existing file keeps its folders and its values. On load, `defaults` keys that have a default value and are missing are added. A key that is already set is left as it is.
 
-The example only includes settings that already exist: `DefaultFolder`, `RecentLimit`, `ActiveColor`, `SortAlphabetical`, `GroupSameName`, `HiddenHosts`, `LastFolder`, `path`, and `label`. It will grow as new features land.
+The example only includes settings that already exist: `DefaultFolder`, `RecentLimit`, `ActiveColor`, `SortAlphabetical`, `GroupSameName`, `HiddenHosts`, `LastFolder`, `local` (`VirtualHost`, `path`, `label`), and SSH folders. It will grow as new features land.
 
 Hosts `demo-docker` and `demo-web` are fictional. Addresses `203.0.113.10` and `203.0.113.20` are documentation addresses only. To see them in the by-host view, paste the blocks from `examples/ssh-config.example` into your SSH config yourself. The extension leaves that file untouched. The A-Z view still lists these folders once the example JSON is in place, because that view reads the favorites directly.
 
@@ -205,6 +226,23 @@ The key (`demo-docker` in the example) is the `Host` alias from `~/.ssh/config`,
     "HiddenHosts": [],
     "LastFolder": ["Projects", "_old"]
   },
+  "local": [
+    {
+      "VirtualHost": "Prod",
+      "path": "~/Documents/Projets",
+      "label": "Projets"
+    },
+    {
+      "VirtualHost": "Prod",
+      "path": "~/Documents/Notes",
+      "label": "Notes"
+    },
+    {
+      "VirtualHost": "Dev",
+      "path": "~/dev/sandbox",
+      "label": "Sandbox"
+    }
+  ],
   "folders": {
     "demo-docker": [
       {
@@ -236,6 +274,8 @@ The key (`demo-docker` in the example) is the `Host` alias from `~/.ssh/config`,
   }
 }
 ~~~
+
+`local` lists folders on this machine. `VirtualHost` is the group name shown like a server (e.g. `Prod`). `path` is an absolute local path or `~/...`. Individual files are not supported yet.
 
 SSH sample to paste yourself. It matches `examples/ssh-config.example`.
 

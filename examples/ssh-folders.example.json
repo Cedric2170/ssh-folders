@@ -9,6 +9,23 @@
     "HiddenHosts": [],
     "LastFolder": ["Projects", "_old"]
   },
+  "local": [
+    {
+      "VirtualHost": "Prod",
+      "path": "~/Documents/Projets",
+      "label": "Projets"
+    },
+    {
+      "VirtualHost": "Prod",
+      "path": "~/Documents/Notes",
+      "label": "Notes"
+    },
+    {
+      "VirtualHost": "Dev",
+      "path": "~/dev/sandbox",
+      "label": "Sandbox"
+    }
+  ],
   "folders": {
     "demo-docker": [
       {

@@ -8,6 +8,7 @@ import {
 export type AzFolderRef = {
   alias: string;
   entry: FolderEntry;
+  local?: boolean;
 };
 
 export type AzGroup = {

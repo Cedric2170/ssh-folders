@@ -1,19 +1,29 @@
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 import {
   addFolderEntry,
+  addLocalFolderEntry,
+  assertLocalPath,
   assertRemotePath,
   defaultFolderPath,
   ensureFoldersFile,
+  expandLocalPath,
+  folderLabel,
   getFoldersConfigPath,
   invalidateFoldersCache,
   labelFromDefaultFolder,
+  listLocalSubdirectories,
+  localVirtualHosts,
   projectsRootForHost,
   readFoldersFile,
   repairPathUnderProjectsRoot,
   removeFolderEntry,
+  removeLocalFolderEntry,
   renameFolderEntry,
+  renameLocalFolderEntry,
   sortAlphabetical,
+  toTildePath,
   visibleHostAliases,
 } from "./foldersConfig";
 import { sortHostAliases } from "./folderDisplay";
@@ -71,10 +81,19 @@ function toOpenTarget(item: unknown): OpenTarget | undefined {
     return item;
   }
   if (item instanceof HostItem) {
-    return { kind: "host", alias: item.alias };
+    return {
+      kind: "host",
+      alias: item.alias,
+      ...(item.local ? { local: true } : {}),
+    };
   }
   if (item instanceof FolderItem) {
-    return { kind: "folder", alias: item.alias, path: item.path };
+    return {
+      kind: "folder",
+      alias: item.alias,
+      path: item.path,
+      ...(item.local ? { local: true } : {}),
+    };
   }
   if (!item || typeof item !== "object") {
     return undefined;
@@ -83,21 +102,49 @@ function toOpenTarget(item: unknown): OpenTarget | undefined {
     contextValue?: string;
     alias?: string;
     path?: string;
+    local?: boolean;
     entry?: { path?: string };
   };
-  if (rec.contextValue === "host" || rec.contextValue === "recentHost") {
+  const local =
+    rec.local === true ||
+    rec.contextValue === "localHost" ||
+    rec.contextValue === "recentLocalHost" ||
+    rec.contextValue === "localFolder" ||
+    rec.contextValue === "recentLocalFolder";
+  if (
+    rec.contextValue === "host" ||
+    rec.contextValue === "recentHost" ||
+    rec.contextValue === "localHost" ||
+    rec.contextValue === "recentLocalHost"
+  ) {
     if (typeof rec.alias === "string") {
-      return { kind: "host", alias: rec.alias };
+      return {
+        kind: "host",
+        alias: rec.alias,
+        ...(local ? { local: true } : {}),
+      };
     }
   }
-  if (rec.contextValue === "folder" || rec.contextValue === "recentFolder") {
-    const remotePath = rec.path ?? rec.entry?.path;
-    if (typeof rec.alias === "string" && typeof remotePath === "string") {
-      return { kind: "folder", alias: rec.alias, path: remotePath };
+  if (
+    rec.contextValue === "folder" ||
+    rec.contextValue === "recentFolder" ||
+    rec.contextValue === "localFolder" ||
+    rec.contextValue === "recentLocalFolder"
+  ) {
+    const folderPath = rec.path ?? rec.entry?.path;
+    if (typeof rec.alias === "string" && typeof folderPath === "string") {
+      return {
+        kind: "folder",
+        alias: rec.alias,
+        path: folderPath,
+        ...(local ? { local: true } : {}),
+      };
     }
   }
   return undefined;
 }
+
+type HostPick = { alias: string; local: boolean };
 
 async function openRemoteHost(
   alias: string,
@@ -134,6 +181,33 @@ async function openRemoteFolder(
   });
 }
 
+async function openLocalHost(alias: string): Promise<undefined> {
+  await recordAccess({ kind: "host", alias, local: true });
+  void vscode.window.showInformationMessage(
+    `SSH - Folders : ouvrez un dossier sous « ${alias} » (groupe local).`
+  );
+  return undefined;
+}
+
+async function openLocalFolder(
+  alias: string,
+  localPath: string,
+  newWindow: boolean
+): Promise<unknown> {
+  const folderPath = assertLocalPath(localPath);
+  await recordAccess({
+    kind: "folder",
+    alias,
+    path: folderPath,
+    local: true,
+  });
+  const uri = vscode.Uri.file(expandLocalPath(folderPath));
+  return vscode.commands.executeCommand("vscode.openFolder", uri, {
+    forceNewWindow: newWindow,
+    forceReuseWindow: !newWindow,
+  });
+}
+
 async function openTreeItem(
   item: unknown,
   newWindow: boolean
@@ -143,6 +217,15 @@ async function openTreeItem(
     return undefined;
   }
   try {
+    if (target.local) {
+      if (target.kind === "host") {
+        return await openLocalHost(target.alias);
+      }
+      if (target.path) {
+        return await openLocalFolder(target.alias, target.path, newWindow);
+      }
+      return undefined;
+    }
     if (target.kind === "host") {
       return await openRemoteHost(target.alias, newWindow);
     }
@@ -157,32 +240,65 @@ async function openTreeItem(
   return undefined;
 }
 
-async function pickHost(preferred?: string): Promise<string | undefined> {
-  const listed = await listHostAliases();
-  const data = await readFoldersFile().catch(() => undefined);
-  const visible = visibleHostAliases(listed, data);
-  const aliases = sortAlphabetical(data) ? sortHostAliases(visible) : visible;
-  if (aliases.length === 0) {
-    void vscode.window.showWarningMessage(
-      listed.length === 0
-        ? "Aucun hôte trouvé dans le fichier SSH config."
-        : "Tous les hôtes SSH sont masqués (defaults.HiddenHosts)."
-    );
-    return undefined;
-  }
+type LocalPathPickItem = vscode.QuickPickItem & {
+  action: "use" | "up" | "dir";
+  target: string;
+};
 
-  const prefill = preferred?.trim() || currentSshHost() || "";
-  const picker = vscode.window.createQuickPick();
-  picker.title = "SSH - Folders";
-  picker.placeholder = "Hôte SSH";
-  picker.items = aliases.map((label) => ({ label }));
+/** Parcourt les dossiers locaux à partir de ~/ ; conserve ~ dans le chemin choisi. */
+async function pickLocalFolderPath(
+  virtualHost: string
+): Promise<string | undefined> {
+  const picker = vscode.window.createQuickPick<LocalPathPickItem>();
+  picker.title = `Ajouter un dossier local — ${virtualHost}`;
+  picker.placeholder =
+    "Choisir un dossier, naviguer avec Entrée, ou saisir un chemin (~/...)";
   picker.ignoreFocusOut = true;
-  const match = prefill
-    ? picker.items.find((item) => sameHost(item.label, prefill))
-    : undefined;
-  if (match) {
-    picker.activeItems = [match];
-  }
+  picker.matchOnDescription = true;
+
+  let current = "~";
+
+  const refresh = async (): Promise<void> => {
+    picker.busy = true;
+    const display = current === "~" ? "~" : current.replace(/\/+$/, "");
+    picker.title = `Ajouter un dossier local — ${virtualHost}  ·  ${display}`;
+    const absolute = expandLocalPath(display);
+    const home = expandLocalPath("~");
+    const subdirs = await listLocalSubdirectories(display);
+    const items: LocalPathPickItem[] = [
+      {
+        action: "use",
+        label: "$(check) Utiliser ce dossier",
+        description: display,
+        target: display,
+        alwaysShow: true,
+      },
+    ];
+    const parentAbs = path.dirname(absolute);
+    if (path.normalize(absolute) !== path.normalize(home)) {
+      items.push({
+        action: "up",
+        label: "$(arrow-up) ..",
+        description: toTildePath(parentAbs),
+        target: toTildePath(parentAbs),
+        alwaysShow: true,
+      });
+    }
+    for (const name of subdirs) {
+      const child = toTildePath(path.join(absolute, name));
+      items.push({
+        action: "dir",
+        label: `$(folder) ${name}`,
+        description: child,
+        target: child,
+      });
+    }
+    picker.items = items;
+    picker.activeItems = items.slice(0, 1);
+    picker.busy = false;
+  };
+
+  await refresh();
 
   return new Promise((resolve) => {
     let settled = false;
@@ -194,11 +310,134 @@ async function pickHost(preferred?: string): Promise<string | undefined> {
       picker.dispose();
       resolve(value);
     };
+
     picker.onDidAccept(() => {
-      const selected =
-        picker.selectedItems[0]?.label ?? picker.activeItems[0]?.label;
+      void (async () => {
+        const typed = picker.value.trim();
+        if (typed) {
+          try {
+            const normalized = assertLocalPath(typed);
+            const abs = expandLocalPath(normalized);
+            const stat = await fs.stat(abs);
+            if (!stat.isDirectory()) {
+              void vscode.window.showWarningMessage(
+                "Ce chemin n'est pas un dossier."
+              );
+              return;
+            }
+            finish(toTildePath(normalized));
+          } catch (error) {
+            void vscode.window.showWarningMessage((error as Error).message);
+          }
+          return;
+        }
+
+        const selected = picker.selectedItems[0] ?? picker.activeItems[0];
+        if (!selected) {
+          return;
+        }
+        if (selected.action === "use") {
+          finish(selected.target);
+          return;
+        }
+        current = selected.target;
+        picker.value = "";
+        await refresh();
+      })();
+    });
+
+    picker.onDidHide(() => {
+      finish(undefined);
+    });
+    picker.show();
+  });
+}
+
+async function pickHost(preferred?: {
+  alias?: string;
+  local?: boolean;
+}): Promise<HostPick | undefined> {
+  const listed = await listHostAliases();
+  const data = await readFoldersFile().catch(() => undefined);
+  const visibleSsh = visibleHostAliases(listed, data);
+  const visibleLocal = visibleHostAliases(localVirtualHosts(data), data);
+  const sshAliases = sortAlphabetical(data)
+    ? sortHostAliases(visibleSsh)
+    : visibleSsh;
+  const localAliases = sortAlphabetical(data)
+    ? sortHostAliases(visibleLocal)
+    : visibleLocal;
+
+  if (sshAliases.length === 0 && localAliases.length === 0) {
+    void vscode.window.showWarningMessage(
+      listed.length === 0 && localAliases.length === 0
+        ? "Aucun hôte SSH ni groupe local. Ajoutez un VirtualHost dans local[] ou un Host SSH."
+        : "Tous les hôtes sont masqués (defaults.HiddenHosts)."
+    );
+    return undefined;
+  }
+
+  type PickItem = vscode.QuickPickItem & { local: boolean };
+  const items: PickItem[] = [
+    ...sshAliases.map((label) => ({
+      label,
+      description: "SSH",
+      local: false,
+    })),
+    ...localAliases.map((label) => ({
+      label,
+      description: "Local",
+      local: true,
+    })),
+  ];
+
+  const prefillAlias = preferred?.alias?.trim() || currentSshHost() || "";
+  const prefillLocal = preferred?.local === true;
+  const picker = vscode.window.createQuickPick<PickItem>();
+  picker.title = "SSH - Folders";
+  picker.placeholder =
+    "Hôte SSH ou groupe local (VirtualHost) — saisie libre pour un nouveau groupe local";
+  picker.items = items;
+  picker.ignoreFocusOut = true;
+  const match = prefillAlias
+    ? picker.items.find(
+        (item) =>
+          sameHost(item.label, prefillAlias) && item.local === prefillLocal
+      ) ??
+      picker.items.find((item) => sameHost(item.label, prefillAlias))
+    : undefined;
+  if (match) {
+    picker.activeItems = [match];
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: HostPick | undefined): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      picker.dispose();
+      resolve(value);
+    };
+    picker.onDidAccept(() => {
+      const selected = picker.selectedItems[0] ?? picker.activeItems[0];
       const typed = picker.value.trim();
-      finish(selected || typed || undefined);
+      if (selected && (!typed || sameHost(selected.label, typed))) {
+        finish({ alias: selected.label, local: selected.local });
+        return;
+      }
+      if (!typed) {
+        finish(undefined);
+        return;
+      }
+      const typedMatch = items.find((item) => sameHost(item.label, typed));
+      if (typedMatch) {
+        finish({ alias: typedMatch.label, local: typedMatch.local });
+        return;
+      }
+      // Nouveau nom : groupe local (VirtualHost), pas un Host SSH inventé.
+      finish({ alias: typed, local: true });
     });
     picker.onDidHide(() => {
       finish(undefined);
@@ -378,11 +617,43 @@ async function activateOnce(
     applyViewMode(mode);
   }
 
-  async function addFolder(item?: HostItem): Promise<void> {
-    const alias = await pickHost(
-      item instanceof HostItem ? item.alias : undefined
-    );
-    if (!alias) {
+  async function addFolder(item?: unknown): Promise<void> {
+    const fromTree =
+      item instanceof HostItem
+        ? { alias: item.alias, local: item.local }
+        : undefined;
+    const picked = fromTree ?? (await pickHost());
+    if (!picked) {
+      return;
+    }
+    const { alias, local } = picked;
+
+    if (local) {
+      const localPath = await pickLocalFolderPath(alias);
+      if (!localPath) {
+        return;
+      }
+      const folderPath = assertLocalPath(localPath);
+      const suggestedLabel = folderLabel({ path: folderPath });
+      const label = await vscode.window.showInputBox({
+        title: `Libellé — ${alias}`,
+        prompt: "Libellé affiché (optionnel)",
+        placeHolder: "Projets",
+        value: suggestedLabel,
+      });
+      if (label === undefined) {
+        return;
+      }
+      try {
+        await addLocalFolderEntry({
+          VirtualHost: alias,
+          path: folderPath,
+          ...(label.trim() ? { label: label.trim() } : {}),
+        });
+        refresh();
+      } catch (error) {
+        void vscode.window.showErrorMessage((error as Error).message);
+      }
       return;
     }
 
@@ -452,7 +723,11 @@ async function activateOnce(
       return;
     }
     try {
-      await renameFolderEntry(item.alias, item.entry.path, label);
+      if (item.local) {
+        await renameLocalFolderEntry(item.alias, item.entry.path, label);
+      } else {
+        await renameFolderEntry(item.alias, item.entry.path, label);
+      }
       refresh();
     } catch (error) {
       void vscode.window.showErrorMessage((error as Error).message);
@@ -472,7 +747,11 @@ async function activateOnce(
       return;
     }
     try {
-      await removeFolderEntry(item.alias, item.entry.path);
+      if (item.local) {
+        await removeLocalFolderEntry(item.alias, item.entry.path);
+      } else {
+        await removeFolderEntry(item.alias, item.entry.path);
+      }
       refresh();
     } catch (error) {
       void vscode.window.showErrorMessage((error as Error).message);
