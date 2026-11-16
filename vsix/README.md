@@ -1,11 +1,22 @@
 # SSH - Folders
 
-Modifications de chaque version empaquetée dans ce dossier.
+Journal **interne** de chaque build empaqueté (y compris les tests locaux `x.y.z-1`).
 `npm run package` ajoute la section de la version courante si elle n'existe pas encore.
 Une section déjà présente n'est pas réécrite.
-Le même script met à jour dans `README.md` (Marketplace) uniquement la dernière version.
+Pour une version publiable `x.y.z` uniquement, le script synchronise aussi `CHANGELOG.md` (onglet Marketplace) et **What's New** dans `README.md`.
 
 <!-- rev:f332532762ff434d37c69014bd7b9efc1ff52f20 -->
+
+## 0.3.0
+
+- Dossiers locaux du poste de base via `local[]` et `VirtualHost` (serveurs virtuels, ouverture `file://`).
+- Ajout d'un dossier local : parcours navigable à partir de `~/`.
+- Masquage d'hôtes : `defaults.HiddenHosts` (ex. `gitlab*`).
+- Fin de liste : `defaults.LastFolder` (ex. `Projects`, `_old`).
+- Regroupement A-Z désactivable : `defaults.GroupSameName`.
+- Tri alphabétique : `defaults.SortAlphabetical` (vrai par défaut).
+- Couleur de l'entrée active : thème `sshFolders.activeForeground` (réglage via `workbench.colorCustomizations`, pas via le JSON des favoris).
+- Clés `defaults` manquantes ajoutées au JSON au chargement.
 
 ## 0.2.6-1
 

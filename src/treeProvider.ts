@@ -221,10 +221,9 @@ export class FolderItem extends vscode.TreeItem {
     }
     this.path = entry.path;
     this.active = folderIsActive(alias, entry.path, this.local);
-    this.iconPath = activeIcon(
-      this.local ? "folder" : "symbol-folder",
-      this.active
-    );
+    // Même icône local/distant : le glyphe `folder` décale le libellé (fausse indentation).
+    // La distinction reste dans la description (`· local`) et l'icône du VirtualHost.
+    this.iconPath = activeIcon("symbol-folder", this.active);
     this.command = {
       command: "sshFolders.openInNewWindow",
       title: "Ouvrir dans une nouvelle fenêtre",

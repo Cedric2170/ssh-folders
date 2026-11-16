@@ -4,7 +4,7 @@ npm run compile après un changement ; `npm test` pour les tests Node (mock vsco
 par défaut F5 / `dev:host` lit le JSON réel ; bac à sable exemples avec `npm run dev:host:exemples` ou Run Extension (exemples) (marqueur `.vscode/ssh-folders-dev.mode`, prioritaire sur l'env `SSH_FOLDERS_DEV` qui peut rester collée au process Cursor) ; le bac à sable est semé une fois depuis `examples/` puis conserve les ajouts ; reset forcé avec `npm run dev:host:exemples:reset` (`SSH_FOLDERS_DEV_RESET=1`) ;
 ne pas utiliser Run Extension (isolé) / `--disable-extensions` si le thème (ex. D2 Dark) doit rester chargé ;
 ne pas monter version dans package.json ni lancer publish:* sans demande ;
-README.md est la page publique, dev.md reste local ;
+README.md est la page publique (Details + What's New) ; CHANGELOG.md = versions publiées `x.y.z` seulement (onglet Changelog) ; builds locaux `x.y.z-1` détaillés dans `vsix/README.md` uniquement ; dev.md reste local ;
 ne pas committer de jetons (OVSX_PAT, .env) ;
 LF, UTF-8, indentation 2 espaces, comme .editorconfig ;
 toute clé de ssh-folders.json qui a une valeur par défaut est déclarée dans le catalogue `DEFAULT_SETTINGS` de src/foldersConfig.ts, dans le schéma et dans l'exemple ;
