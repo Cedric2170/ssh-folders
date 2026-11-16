@@ -1,6 +1,6 @@
 extension TypeScript, code dans src/, sortie dans out/, point d’entrée src/extension.ts ;
 textes visibles (commandes, vues, messages) en français ;
-npm run compile après un changement, test via F5 (Run Extension) ou `npm run dev:host` si le débogueur bloque (`debugBrk`) ;
+npm run compile après un changement ; `npm test` pour les tests Node (mock vscode) des fonctionnalités ; test manuel via F5 (Run Extension) ou `npm run dev:host` si le débogueur bloque (`debugBrk`) ;
 par défaut F5 / `dev:host` lit le JSON réel ; bac à sable exemples avec `npm run dev:host:exemples` ou Run Extension (exemples) (marqueur `.vscode/ssh-folders-dev.mode`, prioritaire sur l'env `SSH_FOLDERS_DEV` qui peut rester collée au process Cursor) ; le bac à sable est semé une fois depuis `examples/` puis conserve les ajouts ; reset forcé avec `npm run dev:host:exemples:reset` (`SSH_FOLDERS_DEV_RESET=1`) ;
 ne pas utiliser Run Extension (isolé) / `--disable-extensions` si le thème (ex. D2 Dark) doit rester chargé ;
 ne pas monter version dans package.json ni lancer publish:* sans demande ;

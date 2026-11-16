@@ -284,6 +284,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
+    "test": "npm run compile && node --require ./test/register-vscode-mock.js --test out/test/**/*.test.js",
     "dev:host": "npm run compile && printf 'real\\n' > .vscode/ssh-folders-dev.mode && cursor --extensionDevelopmentPath=\"$PWD\"",
     "dev:host:exemples": "npm run compile && printf 'sandbox\\n' > .vscode/ssh-folders-dev.mode && cursor --extensionDevelopmentPath=\"$PWD\"",
     "dev:host:exemples:reset": "npm run compile && printf 'sandbox\\n' > .vscode/ssh-folders-dev.mode && SSH_FOLDERS_DEV_RESET=1 cursor --extensionDevelopmentPath=\"$PWD\"",
