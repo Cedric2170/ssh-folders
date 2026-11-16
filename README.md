@@ -59,7 +59,7 @@ Latest published release only.
 - La vue derniers accès liste les connexions récentes, de la plus fraîche à la plus ancienne. Retirer une entrée n'efface pas le favori.
 - Un bouton en haut de l'arbre passe d'une vue à l'autre.
 - Un dossier par défaut s'ouvre au clic sur l'hôte, à la place d'une fenêtre distante vide.
-- La connexion et le dossier ouverts, y compris dans une autre fenêtre, prennent la couleur `defaults.ActiveColor` (vert par défaut).
+- La connexion et le dossier ouverts, y compris dans une autre fenêtre, utilisent la couleur de thème `sshFolders.activeForeground` (vert par défaut).
 
 ### Installation
 
@@ -164,7 +164,15 @@ Le chemin est POSIX et absolu (`/...`).
 
 `defaults.RecentLimit` fixe la taille de la vue derniers accès (20 par défaut, de 1 à 100). L'historique est gardé par l'éditeur, pas dans ce JSON.
 
-`defaults.ActiveColor` colorie cette connexion. Vert par défaut (`green`). Autres noms : `blue`, `orange`, `red`, `purple`, `yellow`. Un code hexadécimal est pris tel quel, par exemple `#7c3aed`.
+La connexion et le dossier actifs sont colorés via la couleur de thème `sshFolders.activeForeground` (vert par défaut : thème sombre `#3fb950`, thème clair `#1a7f37`). Ce n'est **pas** un champ de `ssh-folders.json` : ça se règle dans les **Settings** de l'éditeur (Palette → *Preferences: Open User Settings (JSON)*), pas dans le JSON des favoris.
+
+~~~json
+"workbench.colorCustomizations": {
+  "sshFolders.activeForeground": "#ff00aa"
+}
+~~~
+
+`defaults.ActiveColor` peut encore apparaître dans le JSON (valeur historique) ; il ne pilote plus cette couleur d'affichage.
 
 `defaults.SortAlphabetical` trie les hôtes SSH, les dossiers sous chaque hôte et la liste des dossiers. Vrai par défaut. `false` conserve l'ordre du fichier SSH config et du JSON. La vue derniers accès reste triée par date de connexion.
 
@@ -192,7 +200,7 @@ The pictures at the top follow `examples/ssh-folders.example.json`. Hosts `demo-
 - The recent view lists the latest connections, newest first. Removing an entry does not delete the favorite.
 - A button at the top of the tree switches from one view to the next.
 - A default folder opens when you click a host, instead of an empty remote window.
-- The connection and folder that are open, including in another window, use the color from `defaults.ActiveColor` (green by default).
+- The connection and folder that are open, including in another window, use the theme color `sshFolders.activeForeground` (green by default).
 
 ### Installation
 
@@ -297,7 +305,15 @@ The path is POSIX and absolute (`/...`).
 
 `defaults.RecentLimit` sets the size of the recent view (20 by default, from 1 to 100). History is stored by the editor, not in this JSON file.
 
-`defaults.ActiveColor` colors that connection. Green by default (`green`). Other names: `blue`, `orange`, `red`, `purple`, `yellow`. A hexadecimal code is used as-is, for example `#7c3aed`.
+The active connection and folder use the theme color `sshFolders.activeForeground` (green by default: dark `#3fb950`, light `#1a7f37`). This is **not** a field in `ssh-folders.json`: set it in the editor **Settings** (Command Palette → *Preferences: Open User Settings (JSON)*), not in the favorites JSON.
+
+~~~json
+"workbench.colorCustomizations": {
+  "sshFolders.activeForeground": "#ff00aa"
+}
+~~~
+
+`defaults.ActiveColor` may still appear in the JSON (legacy value); it no longer drives this display color.
 
 `defaults.SortAlphabetical` sorts SSH hosts, the folders under each host, and the folder list. True by default. `false` keeps the order of the SSH config file and of the JSON. The recent view stays sorted by connection date.
 

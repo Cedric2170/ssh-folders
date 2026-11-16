@@ -54,7 +54,7 @@
           }
         },
         "ActiveColor": {
-          "description": "Couleur de la connexion et du dossier ouverts. Vert par défaut. Noms : green (vert), blue (bleu), orange, red (rouge), purple (violet), yellow (jaune). Ou un code hexadécimal. Exemple : \"purple\" ou \"#7c3aed\".",
+          "description": "Valeur historique conservée dans le JSON. La couleur affichée vient de la couleur de thème sshFolders.activeForeground (Settings → workbench.colorCustomizations), pas de ce champ.",
           "default": "green",
           "anyOf": [
             {
