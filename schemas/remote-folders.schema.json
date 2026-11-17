@@ -53,6 +53,15 @@
             "minLength": 1
           }
         },
+        "ArchiveParents": {
+          "type": "array",
+          "default": ["_old", "old"],
+          "description": "Noms de dossier parent qui marquent une entrée comme archive/inactif. Correspondance sans casse avec le nom du parent immédiat du chemin (ex. /opt/docker/projects/_old/legacy). Ces dossiers sont grisés, regroupés à part en vue A-Z, et placés en fin de liste (après LastFolder). Par défaut : _old et old.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "ActiveColor": {
           "description": "Valeur historique conservée dans le JSON. La couleur affichée vient de la couleur de thème sshFolders.activeForeground (Settings → workbench.colorCustomizations), pas de ce champ.",
           "default": "green",

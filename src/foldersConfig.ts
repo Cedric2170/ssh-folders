@@ -32,6 +32,7 @@ export const DEFAULT_SETTINGS = {
   GroupSameName: true,
   HiddenHosts: [] as string[],
   LastFolder: ["Projects", "_old"] as string[],
+  ArchiveParents: ["_old", "old"] as string[],
 } as const;
 
 export const ACTIVE_COLOR_NAMES = [
@@ -71,6 +72,8 @@ export interface FolderDefaults {
   GroupSameName?: boolean;
   HiddenHosts?: string[];
   LastFolder?: string[];
+  /** Noms de dossier parent qui marquent une entrée comme archive (grisée, fin de liste). */
+  ArchiveParents?: string[];
   [key: string]: unknown;
 }
 
@@ -420,6 +423,13 @@ function normalizeDefaults(raw: unknown): FolderDefaults | undefined {
   } else {
     delete defaults.LastFolder;
   }
+  if (Array.isArray(rec.ArchiveParents)) {
+    defaults.ArchiveParents = rec.ArchiveParents.filter(
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    ).map((item) => item.trim());
+  } else {
+    delete defaults.ArchiveParents;
+  }
   return Object.keys(defaults).length > 0 ? defaults : undefined;
 }
 
@@ -691,6 +701,42 @@ export function isLastFolderLabel(
   data: FoldersFile | undefined
 ): boolean {
   return lastFolderRank(label, data) >= 0;
+}
+
+/** Noms de dossier parent considérés comme archive. Par défaut `_old` et `old`. */
+export function archiveParentNames(data: FoldersFile | undefined): string[] {
+  const list = data?.defaults?.ArchiveParents;
+  return Array.isArray(list) ? list : [...DEFAULT_SETTINGS.ArchiveParents];
+}
+
+/** Nom du dossier parent immédiat (POSIX, `~` conservé). */
+export function pathParentName(folderPath: string): string {
+  const normalized = folderPath.replace(/\\/g, "/").replace(/\/+$/, "") || "/";
+  if (normalized === "/" || normalized === "~") {
+    return "";
+  }
+  const parent = path.posix.dirname(normalized);
+  if (parent === "/" || parent === "." || parent === "") {
+    return "";
+  }
+  return path.posix.basename(parent);
+}
+
+/**
+ * Vrai si le dossier parent immédiat figure dans `defaults.ArchiveParents`
+ * (comparaison sans casse). Ex. `/opt/docker/projects/_old/legacy`.
+ */
+export function isArchiveFolderPath(
+  folderPath: string,
+  data: FoldersFile | undefined
+): boolean {
+  const parent = pathParentName(folderPath);
+  if (!parent) {
+    return false;
+  }
+  return archiveParentNames(data).some(
+    (name) => name.localeCompare(parent, "fr", { sensitivity: "base" }) === 0
+  );
 }
 
 function hostPatternMatches(pattern: string, alias: string): boolean {

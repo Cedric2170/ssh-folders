@@ -7,6 +7,7 @@ import {
   folderLabel,
   foldersForHost,
   groupSameName,
+  isArchiveFolderPath,
   isHostHidden,
   localFoldersForHost,
   localVirtualHosts,
@@ -36,7 +37,9 @@ import { isFolderInOpenWindow, isHostInOpenWindow } from "./openWindows";
 import { isDevMode } from "./devMode";
 
 const ACTIVE_SCHEME = "ssh-folders-active";
+const ARCHIVE_SCHEME = "ssh-folders-archive";
 const activeColor = new vscode.ThemeColor("sshFolders.activeForeground");
+const archiveColor = new vscode.ThemeColor("disabledForeground");
 const activeDecorationEmitter = new vscode.EventEmitter<
   vscode.Uri | vscode.Uri[] | undefined
 >();
@@ -82,9 +85,27 @@ function activeIcon(iconId: string, active: boolean): vscode.ThemeIcon {
   return new vscode.ThemeIcon(iconId, active ? activeColor : undefined);
 }
 
+function folderIcon(active: boolean, archive: boolean): vscode.ThemeIcon {
+  if (active) {
+    return new vscode.ThemeIcon("symbol-folder", activeColor);
+  }
+  if (archive) {
+    return new vscode.ThemeIcon("symbol-folder", archiveColor);
+  }
+  return new vscode.ThemeIcon("symbol-folder");
+}
+
 function activeResource(id: string): vscode.Uri {
   return vscode.Uri.from({
     scheme: ACTIVE_SCHEME,
+    path: "/item",
+    query: id,
+  });
+}
+
+function archiveResource(id: string): vscode.Uri {
+  return vscode.Uri.from({
+    scheme: ARCHIVE_SCHEME,
     path: "/item",
     query: id,
   });
@@ -98,10 +119,13 @@ export class ActiveItemDecorationProvider
   provideFileDecoration(
     uri: vscode.Uri
   ): vscode.FileDecoration | undefined {
-    if (uri.scheme !== ACTIVE_SCHEME) {
-      return undefined;
+    if (uri.scheme === ACTIVE_SCHEME) {
+      return { color: activeColor };
     }
-    return { color: activeColor };
+    if (uri.scheme === ARCHIVE_SCHEME) {
+      return { color: archiveColor, tooltip: "Archive" };
+    }
+    return undefined;
   }
 }
 
@@ -189,6 +213,7 @@ export class FolderItem extends vscode.TreeItem {
   readonly kind = "folder" as const;
   readonly path: string;
   readonly active: boolean;
+  readonly archive: boolean;
   readonly local: boolean;
 
   constructor(
@@ -221,9 +246,12 @@ export class FolderItem extends vscode.TreeItem {
     }
     this.path = entry.path;
     this.active = folderIsActive(alias, entry.path, this.local);
+    this.archive =
+      !this.active &&
+      isArchiveFolderPath(entry.path, cachedFoldersFile());
     // Même icône local/distant : le glyphe `folder` décale le libellé (fausse indentation).
     // La distinction reste dans la description (`· local`) et l'icône du VirtualHost.
-    this.iconPath = activeIcon("symbol-folder", this.active);
+    this.iconPath = folderIcon(this.active, this.archive);
     this.command = {
       command: "sshFolders.openInNewWindow",
       title: "Ouvrir dans une nouvelle fenêtre",
@@ -255,6 +283,13 @@ export class FolderItem extends vscode.TreeItem {
       this.accessibilityInformation = {
         label: `${label}, ${this.description ?? entry.path}, dossier actif`,
       };
+    } else if (this.archive) {
+      this.resourceUri = archiveResource(this.id);
+      this.tooltip = `${this.tooltip}\nArchive (inactif)`;
+      const label = this.label?.toString() ?? folderLabel(entry);
+      this.accessibilityInformation = {
+        label: `${label}, ${this.description ?? entry.path}, archive`,
+      };
     }
   }
 }
@@ -270,13 +305,28 @@ export class FolderGroupItem extends vscode.TreeItem {
     active = false
   ) {
     super(groupName, vscode.TreeItemCollapsibleState.Collapsed);
-    this.id = `group:${stem}`;
-    this.iconPath = activeIcon("layers", active);
-    this.tooltip = active ? `${groupName}\nDossier actif` : groupName;
+    const archive =
+      !active &&
+      children.length > 0 &&
+      children.every((child) => child.archive);
+    this.id = archive ? `group:archive:${stem}` : `group:${stem}`;
+    this.iconPath = archive
+      ? new vscode.ThemeIcon("layers", archiveColor)
+      : activeIcon("layers", active);
+    this.tooltip = active
+      ? `${groupName}\nDossier actif`
+      : archive
+        ? `${groupName}\nArchive (inactif)`
+        : groupName;
     if (active) {
       this.resourceUri = activeResource(this.id);
       this.accessibilityInformation = {
         label: `${groupName}, dossier actif`,
+      };
+    } else if (archive) {
+      this.resourceUri = archiveResource(this.id);
+      this.accessibilityInformation = {
+        label: `${groupName}, archive`,
       };
     }
   }

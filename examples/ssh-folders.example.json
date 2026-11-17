@@ -7,7 +7,8 @@
     "SortAlphabetical": true,
     "GroupSameName": true,
     "HiddenHosts": [],
-    "LastFolder": ["Projects", "_old"]
+    "LastFolder": ["Projects", "_old"],
+    "ArchiveParents": ["_old", "old"]
   },
   "local": [
     {
@@ -43,6 +44,14 @@
       {
         "path": "/opt/docker/projects/_old",
         "label": "_old"
+      },
+      {
+        "path": "/opt/docker/projects/_old/legacy-api",
+        "label": "Legacy-api"
+      },
+      {
+        "path": "/opt/docker/projects/_old/old-portal",
+        "label": "Old-portal"
       }
     ],
     "demo-web": [

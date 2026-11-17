@@ -87,6 +87,13 @@ Correspondance sans casse ; `*` et `?` acceptés. Exemple :
 vue A-Z). Correspondance sans casse avec le `label`. Par défaut :
 `["Projects", "_old"]`. L'ordre du tableau fixe l'ordre relatif en bas.
 
+`defaults.ArchiveParents` marque comme archive/inactif les dossiers dont le
+**parent immédiat** du chemin figure dans la liste (sans casse). Par défaut :
+`["_old", "old"]`. Exemple : `/opt/docker/projects/_old/legacy-api`. Ces
+entrées sont grisées (`disabledForeground`), placées après `LastFolder`, et
+regroupées à part en vue A-Z (sans se mélanger aux dossiers actifs du même
+nom).
+
 Au chargement, les clés de `defaults` qui ont une valeur par défaut et qui
 manquent dans le JSON sont ajoutées. Une clé déjà présente n'est pas modifiée.
 Le catalogue est `DEFAULT_SETTINGS` dans `src/foldersConfig.ts`.

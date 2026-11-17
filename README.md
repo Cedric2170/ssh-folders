@@ -94,6 +94,7 @@ Au premier lancement, l'extension crée le fichier et copie le schéma à côté
 | `GroupSameName` | `true` | Regroupe les noms proches en vue A-Z. |
 | `HiddenHosts` | `[]` | Masque des alias (`gitlab*`, …). |
 | `LastFolder` | `Projects`, `_old` | Libellés placés en fin de liste. |
+| `ArchiveParents` | `_old`, `old` | Parent immédiat → archive (grisé, fin de liste, regroupé à part en A-Z). |
 
 #### 4. Couleur de l'entrée active
 
@@ -178,6 +179,7 @@ On first launch, the extension creates the file and copies the schema next to it
 | `GroupSameName` | `true` | Groups similar names in the A-Z view. |
 | `HiddenHosts` | `[]` | Hides aliases (`gitlab*`, …). |
 | `LastFolder` | `Projects`, `_old` | Labels kept at the end of lists. |
+| `ArchiveParents` | `_old`, `old` | Immediate parent → archive (grayed, end of lists, separate A-Z groups). |
 
 #### 4. Active entry color
 

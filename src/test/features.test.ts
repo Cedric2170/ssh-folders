@@ -9,17 +9,23 @@ import {
   assertLocalPath,
   expandLocalPath,
   invalidateFoldersCache,
+  isArchiveFolderPath,
   isHostHidden,
   listLocalSubdirectories,
   localFoldersForHost,
   localVirtualHosts,
   normalizeFileWithMeta,
+  pathParentName,
   readFoldersFile,
   removeLocalFolderEntry,
   toTildePath,
   visibleHostAliases,
   type FoldersFile,
 } from "../foldersConfig";
+import {
+  buildAzFolderTree,
+  sortFolderEntries,
+} from "../folderDisplay";
 import {
   initDevMode,
   isDevMode,
@@ -113,6 +119,81 @@ describe("HiddenHosts", () => {
       visibleHostAliases(["demo-docker", "gitlab-ci", "Legacy"], data),
       ["demo-docker"]
     );
+  });
+});
+
+describe("ArchiveParents", () => {
+  const data: FoldersFile = {
+    folders: {},
+    defaults: { ArchiveParents: ["_old", "old"] },
+  };
+
+  it("détecte le parent immédiat _old / old", () => {
+    assert.strictEqual(pathParentName("/opt/docker/projects/_old/legacy"), "_old");
+    assert.strictEqual(
+      isArchiveFolderPath("/opt/docker/projects/_old/legacy", data),
+      true
+    );
+    assert.strictEqual(
+      isArchiveFolderPath("/opt/docker/projects/old/portal", data),
+      true
+    );
+    assert.strictEqual(
+      isArchiveFolderPath("~/Documents/_old/notes", data),
+      true
+    );
+  });
+
+  it("ne marque pas le dossier _old lui-même ni un actif", () => {
+    assert.strictEqual(
+      isArchiveFolderPath("/opt/docker/projects/_old", data),
+      false
+    );
+    assert.strictEqual(
+      isArchiveFolderPath("/opt/docker/projects/grafana", data),
+      false
+    );
+  });
+
+  it("place les archives après LastFolder", () => {
+    const ordered = sortFolderEntries(
+      [
+        { path: "/opt/docker/projects/_old/legacy", label: "Legacy" },
+        { path: "/opt/docker/projects/grafana", label: "Grafana" },
+        { path: "/opt/docker/projects/_old", label: "_old" },
+        { path: "/opt/docker/projects", label: "Projects" },
+      ],
+      { data: { ...data, defaults: { ...data.defaults, LastFolder: ["Projects", "_old"] } } }
+    ).map((entry) => entry.label);
+    assert.deepStrictEqual(ordered, ["Grafana", "Projects", "_old", "Legacy"]);
+  });
+
+  it("sépare archives et actifs dans l'arbre A-Z", () => {
+    const nodes = buildAzFolderTree(
+      [
+        { alias: "demo", entry: { path: "/p/grafana", label: "Grafana" } },
+        {
+          alias: "demo",
+          entry: { path: "/p/_old/grafana", label: "Grafana" },
+        },
+        {
+          alias: "demo",
+          entry: { path: "/p/_old/legacy", label: "Legacy" },
+        },
+      ],
+      { data }
+    );
+    assert.strictEqual(nodes.length, 3);
+    assert.strictEqual(nodes[0].kind, "leaf");
+    if (nodes[0].kind === "leaf") {
+      assert.strictEqual(nodes[0].item.entry.path, "/p/grafana");
+    }
+    const archivePaths = nodes.slice(1).flatMap((node) =>
+      node.kind === "leaf"
+        ? [node.item.entry.path]
+        : node.items.map((item) => item.entry.path)
+    );
+    assert.ok(archivePaths.every((p) => p.includes("/_old/")));
   });
 });
 
