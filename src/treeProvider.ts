@@ -131,7 +131,7 @@ export class ActiveItemDecorationProvider
       return { color: activeColor };
     }
     if (uri.scheme === ARCHIVE_SCHEME) {
-      return { color: archiveColor, tooltip: "Archive" };
+      return { color: archiveColor, tooltip: vscode.l10n.t("Archive") };
     }
     return undefined;
   }
@@ -185,21 +185,24 @@ export class HostItem extends vscode.TreeItem {
     this.iconPath = activeIcon(baseIcon, active);
     this.tooltip =
       options.tooltip ??
-      (this.local ? `${alias} (local)` : alias);
+      (this.local ? vscode.l10n.t("{0} (local)", alias) : alias);
     if (this.favorite) {
-      this.tooltip = `${this.tooltip}\nFavori`;
+      this.tooltip = `${this.tooltip}\n${vscode.l10n.t("Favorite")}`;
     }
     if (active) {
       this.resourceUri = activeResource(this.id);
       this.tooltip = `${this.tooltip}\n${
-        this.local ? "Dossier local ouvert" : "Connexion active"
+        this.local
+          ? vscode.l10n.t("Local folder open")
+          : vscode.l10n.t("Active connection")
       }`;
+      const activeLabel = this.local
+        ? vscode.l10n.t("local open")
+        : vscode.l10n.t("active connection");
       this.accessibilityInformation = {
         label: options.description
-          ? `${alias}, ${options.description}, ${
-              this.local ? "local ouvert" : "connexion active"
-            }`
-          : `${alias}, ${this.local ? "local ouvert" : "connexion active"}`,
+          ? vscode.l10n.t("{0}, {1}, {2}", alias, options.description, activeLabel)
+          : vscode.l10n.t("{0}, {1}", alias, activeLabel),
       };
     }
     if (options.description) {
@@ -207,7 +210,7 @@ export class HostItem extends vscode.TreeItem {
       this.collapsibleState = vscode.TreeItemCollapsibleState.None;
       this.command = {
         command: "sshFolders.openInNewWindow",
-        title: "Ouvrir dans une nouvelle fenêtre",
+        title: vscode.l10n.t("Open in new window"),
         arguments: [
           {
             kind: "host",
@@ -275,7 +278,7 @@ export class FolderItem extends vscode.TreeItem {
     this.iconPath = folderIcon(this.active, this.archive, this.favorite);
     this.command = {
       command: "sshFolders.openInNewWindow",
-      title: "Ouvrir dans une nouvelle fenêtre",
+      title: vscode.l10n.t("Open in new window"),
       arguments: [
         {
           kind: "folder",
@@ -288,7 +291,9 @@ export class FolderItem extends vscode.TreeItem {
     if (options.description !== undefined) {
       this.description = options.description;
     } else if (options.flat) {
-      this.description = this.local ? `${alias} · local` : alias;
+      this.description = this.local
+        ? vscode.l10n.t("{0} · local", alias)
+        : alias;
     } else {
       this.description = entry.path;
     }
@@ -298,21 +303,29 @@ export class FolderItem extends vscode.TreeItem {
         ? `${this.label} — ${alias}:${entry.path}`
         : `${alias}:${entry.path}`);
     if (this.favorite) {
-      this.tooltip = `${this.tooltip}\nFavori`;
+      this.tooltip = `${this.tooltip}\n${vscode.l10n.t("Favorite")}`;
     }
     if (this.active) {
       this.resourceUri = activeResource(this.id);
-      this.tooltip = `${this.tooltip}\nDossier actif`;
+      this.tooltip = `${this.tooltip}\n${vscode.l10n.t("Active folder")}`;
       const label = this.label?.toString() ?? folderLabel(entry);
       this.accessibilityInformation = {
-        label: `${label}, ${this.description ?? entry.path}, dossier actif`,
+        label: vscode.l10n.t(
+          "{0}, {1}, active folder",
+          label,
+          String(this.description ?? entry.path)
+        ),
       };
     } else if (this.archive) {
       this.resourceUri = archiveResource(this.id);
-      this.tooltip = `${this.tooltip}\nArchive (inactif)`;
+      this.tooltip = `${this.tooltip}\n${vscode.l10n.t("Archive (inactive)")}`;
       const label = this.label?.toString() ?? folderLabel(entry);
       this.accessibilityInformation = {
-        label: `${label}, ${this.description ?? entry.path}, archive`,
+        label: vscode.l10n.t(
+          "{0}, {1}, archive",
+          label,
+          String(this.description ?? entry.path)
+        ),
       };
     }
   }
@@ -351,21 +364,24 @@ export class FolderGroupItem extends vscode.TreeItem {
         ? new vscode.ThemeIcon("layers", archiveColor)
         : activeIcon("layers", active);
     this.tooltip = options.favorites
-      ? `${groupName}\nÉpinglés en tête ; aussi dans la liste ci-dessous`
+      ? vscode.l10n.t(
+          "{0}\nPinned at the top; also shown in the list below",
+          groupName
+        )
       : active
-        ? `${groupName}\nDossier actif`
+        ? vscode.l10n.t("{0}\nActive folder", groupName)
         : archive
-          ? `${groupName}\nArchive (inactif)`
+          ? vscode.l10n.t("{0}\nArchive (inactive)", groupName)
           : groupName;
     if (active) {
       this.resourceUri = activeResource(this.id);
       this.accessibilityInformation = {
-        label: `${groupName}, dossier actif`,
+        label: vscode.l10n.t("{0}, active folder", groupName),
       };
     } else if (archive) {
       this.resourceUri = archiveResource(this.id);
       this.accessibilityInformation = {
-        label: `${groupName}, archive`,
+        label: vscode.l10n.t("{0}, archive", groupName),
       };
     }
   }
@@ -418,13 +434,15 @@ export function getViewMode(): ViewMode {
 export function viewTitle(mode: ViewMode): string {
   const suffix = isDevMode() ? " · dev" : "";
   if (mode === "byFolder") {
-    const title = sortAlphabetical(cachedFoldersFile()) ? "Dossiers A-Z" : "Dossiers";
+    const title = sortAlphabetical(cachedFoldersFile())
+      ? vscode.l10n.t("Folders A-Z")
+      : vscode.l10n.t("Folders");
     return `${title}${suffix}`;
   }
   if (mode === "recent") {
-    return `Derniers accès${suffix}`;
+    return `${vscode.l10n.t("Recent access")}${suffix}`;
   }
-  return `SSH - Folders${suffix}`;
+  return `${vscode.l10n.t("SSH - Folders")}${suffix}`;
 }
 
 function toFlatFolderItem(
@@ -512,7 +530,7 @@ function listFoldersAlphabetical(): SshFoldersItem[] {
     toFlatFolderItem(ref, { idPrefix: "fav:" })
   );
   return [
-    new FolderGroupItem("Favoris", "favoris", favoriteItems, false, {
+    new FolderGroupItem(vscode.l10n.t("Favorites"), "favoris", favoriteItems, false, {
       favorites: true,
     }),
     ...normal,
@@ -520,8 +538,8 @@ function listFoldersAlphabetical(): SshFoldersItem[] {
 }
 
 function recentTooltip(entry: RecentAccess, detail: string): string {
-  const when = new Date(entry.at).toLocaleString("fr-CH");
-  return `${detail}\nDernier accès : ${when}`;
+  const when = new Date(entry.at).toLocaleString(vscode.env.language);
+  return vscode.l10n.t("{0}\nLast access: {1}", detail, when);
 }
 
 function listRecentItems(): SshFoldersItem[] {
@@ -539,7 +557,9 @@ function listRecentItems(): SshFoldersItem[] {
           description: relative,
           tooltip: recentTooltip(
             access,
-            local ? `${access.alias} (local)` : access.alias
+            local
+              ? vscode.l10n.t("{0} (local)", access.alias)
+              : access.alias
           ),
           recent: true,
           local,
@@ -561,7 +581,9 @@ function listRecentItems(): SshFoldersItem[] {
       new FolderItem(access.alias, entry, {
         flat: true,
         title: displayFolderName(entry),
-        description: `${access.alias}${local ? " · local" : ""} · ${relative}`,
+        description: local
+          ? vscode.l10n.t("{0} · local · {1}", access.alias, relative)
+          : `${access.alias} · ${relative}`,
         tooltip: recentTooltip(access, `${access.alias}:${access.path}`),
         recent: true,
         local,
@@ -574,7 +596,7 @@ function listRecentItems(): SshFoldersItem[] {
 function listByHostRoots(hostsReady: boolean): SshFoldersItem[] {
   const aliases = cachedHostAliases();
   if (aliases === undefined && !hostsReady) {
-    return [new StatusItem("Chargement…")];
+    return [new StatusItem(vscode.l10n.t("Loading…"))];
   }
   const data = cachedFoldersFile();
   const sshHosts = visibleHostAliases(aliases ?? [], data);
@@ -683,7 +705,10 @@ export class SshFoldersTreeProvider
       const message =
         error instanceof Error ? error.message : String(error);
       void vscode.window.showErrorMessage(
-        `SSH - Folders : impossible de charger l'arbre. ${message}`
+        vscode.l10n.t(
+          "SSH - Folders: unable to load the tree. {0}",
+          message
+        )
       );
       return [];
     }

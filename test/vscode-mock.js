@@ -18,6 +18,13 @@ function getConfiguration(section) {
   };
 }
 
+function l10nT(message, ...args) {
+  return String(message).replace(/\{(\d+)\}/g, (_, index) => {
+    const value = args[Number(index)];
+    return value === undefined || value === null ? "" : String(value);
+  });
+}
+
 module.exports = {
   ExtensionMode: {
     Production: 1,
@@ -28,6 +35,12 @@ module.exports = {
     file(fsPath) {
       return { fsPath, scheme: "file" };
     },
+  },
+  env: {
+    language: "fr",
+  },
+  l10n: {
+    t: l10nT,
   },
   workspace: {
     getConfiguration,

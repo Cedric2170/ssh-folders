@@ -195,7 +195,10 @@ async function openRemoteFolder(
 async function openLocalHost(alias: string): Promise<undefined> {
   await recordAccess({ kind: "host", alias, local: true });
   void vscode.window.showInformationMessage(
-    `SSH - Folders : ouvrez un dossier sous « ${alias} » (groupe local).`
+    vscode.l10n.t(
+      'SSH - Folders: open a folder under "{0}" (local group).',
+      alias
+    )
   );
   return undefined;
 }
@@ -245,7 +248,7 @@ async function openTreeItem(
     }
   } catch (error) {
     void vscode.window.showErrorMessage(
-      `SSH - Folders : ${(error as Error).message}`
+      vscode.l10n.t("SSH - Folders: {0}", (error as Error).message)
     );
   }
   return undefined;
@@ -261,9 +264,10 @@ async function pickLocalFolderPath(
   virtualHost: string
 ): Promise<string | undefined> {
   const picker = vscode.window.createQuickPick<LocalPathPickItem>();
-  picker.title = `Ajouter un dossier local — ${virtualHost}`;
-  picker.placeholder =
-    "Choisir un dossier, naviguer avec Entrée, ou saisir un chemin (~/...)";
+  picker.title = vscode.l10n.t("Add a local folder — {0}", virtualHost);
+  picker.placeholder = vscode.l10n.t(
+    "Choose a folder, navigate with Enter, or type a path (~/...)"
+  );
   picker.ignoreFocusOut = true;
   picker.matchOnDescription = true;
 
@@ -272,14 +276,18 @@ async function pickLocalFolderPath(
   const refresh = async (): Promise<void> => {
     picker.busy = true;
     const display = current === "~" ? "~" : current.replace(/\/+$/, "");
-    picker.title = `Ajouter un dossier local — ${virtualHost}  ·  ${display}`;
+    picker.title = vscode.l10n.t(
+      "Add a local folder — {0}  ·  {1}",
+      virtualHost,
+      display
+    );
     const absolute = expandLocalPath(display);
     const home = expandLocalPath("~");
     const subdirs = await listLocalSubdirectories(display);
     const items: LocalPathPickItem[] = [
       {
         action: "use",
-        label: "$(check) Utiliser ce dossier",
+        label: vscode.l10n.t("$(check) Use this folder"),
         description: display,
         target: display,
         alwaysShow: true,
@@ -332,7 +340,7 @@ async function pickLocalFolderPath(
             const stat = await fs.stat(abs);
             if (!stat.isDirectory()) {
               void vscode.window.showWarningMessage(
-                "Ce chemin n'est pas un dossier."
+                vscode.l10n.t("This path is not a folder.")
               );
               return;
             }
@@ -382,8 +390,12 @@ async function pickHost(preferred?: {
   if (sshAliases.length === 0 && localAliases.length === 0) {
     void vscode.window.showWarningMessage(
       listed.length === 0 && localAliases.length === 0
-        ? "Aucun hôte SSH ni groupe local. Ajoutez un VirtualHost dans local[] ou un Host SSH."
-        : "Tous les hôtes sont masqués (defaults.HiddenHosts)."
+        ? vscode.l10n.t(
+            "No SSH host or local group. Add a VirtualHost in local[] or an SSH Host."
+          )
+        : vscode.l10n.t(
+            "All hosts are hidden (defaults.HiddenHosts)."
+          )
     );
     return undefined;
   }
@@ -405,9 +417,10 @@ async function pickHost(preferred?: {
   const prefillAlias = preferred?.alias?.trim() || currentSshHost() || "";
   const prefillLocal = preferred?.local === true;
   const picker = vscode.window.createQuickPick<PickItem>();
-  picker.title = "SSH - Folders";
-  picker.placeholder =
-    "Hôte SSH ou groupe local (VirtualHost) — saisie libre pour un nouveau groupe local";
+  picker.title = vscode.l10n.t("SSH - Folders");
+  picker.placeholder = vscode.l10n.t(
+    "SSH host or local group (VirtualHost) — type freely for a new local group"
+  );
   picker.items = items;
   picker.ignoreFocusOut = true;
   const match = prefillAlias
@@ -551,7 +564,10 @@ async function activateOnce(
       await prepareDevSandbox(context);
     } catch (error) {
       void vscode.window.showErrorMessage(
-        `SSH - Folders : mode dev impossible (${(error as Error).message}). Les fichiers personnels ne sont pas utilisés.`
+        vscode.l10n.t(
+          "SSH - Folders: dev mode unavailable ({0}). Personal files are not used.",
+          (error as Error).message
+        )
       );
     }
     invalidateFoldersCache();
@@ -647,8 +663,8 @@ async function activateOnce(
       const folderPath = assertLocalPath(localPath);
       const suggestedLabel = folderLabel({ path: folderPath });
       const label = await vscode.window.showInputBox({
-        title: `Libellé — ${alias}`,
-        prompt: "Libellé affiché (optionnel)",
+        title: vscode.l10n.t("Label — {0}", alias),
+        prompt: vscode.l10n.t("Display label (optional)"),
         placeHolder: "Projets",
         value: suggestedLabel,
       });
@@ -675,8 +691,10 @@ async function activateOnce(
       activeRemotePathForHost(alias) ?? openRemotePathForHost(alias)
     );
     const remotePath = await vscode.window.showInputBox({
-      title: `Ajouter un dossier — ${alias}`,
-      prompt: "Chemin POSIX absolu sur l'hôte distant (modifiable librement)",
+      title: vscode.l10n.t("Add a folder — {0}", alias),
+      prompt: vscode.l10n.t(
+        "Absolute POSIX path on the remote host (freely editable)"
+      ),
       placeHolder: defaultFolder ?? "/home/utilisateur/projet",
       value: prefillPath,
       // Sélectionne toute la proposition pour la remplacer facilement.
@@ -697,8 +715,8 @@ async function activateOnce(
     const folderPath = assertRemotePath(remotePath);
     const suggestedLabel = labelFromDefaultFolder(folderPath, defaultFolder);
     const label = await vscode.window.showInputBox({
-      title: `Libellé — ${alias}`,
-      prompt: "Libellé affiché (optionnel)",
+      title: vscode.l10n.t("Label — {0}", alias),
+      prompt: vscode.l10n.t("Display label (optional)"),
       placeHolder: "projet-api",
       value: suggestedLabel,
     });
@@ -722,9 +740,9 @@ async function activateOnce(
       return;
     }
     const label = await vscode.window.showInputBox({
-      title: "Renommer le dossier",
+      title: vscode.l10n.t("Rename folder"),
       value: item.label?.toString() ?? "",
-      prompt: "Nouveau libellé (vide = nom du dossier)",
+      prompt: vscode.l10n.t("New label (empty = folder name)"),
     });
     if (label === undefined) {
       return;
@@ -745,12 +763,17 @@ async function activateOnce(
     if (!(item instanceof FolderItem)) {
       return;
     }
+    const deleteAction = vscode.l10n.t("Remove");
     const confirmed = await vscode.window.showWarningMessage(
-      `Supprimer « ${item.label} » (${item.entry.path}) ?`,
+      vscode.l10n.t(
+        'Remove "{0}" ({1})?',
+        String(item.label ?? ""),
+        item.entry.path
+      ),
       { modal: true },
-      "Supprimer"
+      deleteAction
     );
-    if (confirmed !== "Supprimer") {
+    if (confirmed !== deleteAction) {
       return;
     }
     try {
@@ -828,8 +851,8 @@ async function activateOnce(
             refresh();
             void vscode.window.showInformationMessage(
               next
-                ? `« ${item.alias} » ajouté aux favoris.`
-                : `« ${item.alias} » retiré des favoris.`
+                ? vscode.l10n.t("\"{0}\" added to favorites.", item.alias)
+                : vscode.l10n.t("\"{0}\" removed from favorites.", item.alias)
             );
             return;
           }
@@ -841,8 +864,8 @@ async function activateOnce(
             const name = item.label?.toString() ?? item.path;
             void vscode.window.showInformationMessage(
               next
-                ? `« ${name} » ajouté aux favoris.`
-                : `« ${name} » retiré des favoris.`
+                ? vscode.l10n.t("\"{0}\" added to favorites.", name)
+                : vscode.l10n.t("\"{0}\" removed from favorites.", name)
             );
           }
         } catch (error) {
@@ -878,7 +901,10 @@ async function activateOnce(
         await openTextFile(getSshConfigPath());
       } catch {
         void vscode.window.showErrorMessage(
-          `Fichier SSH config introuvable : ${getSshConfigPath()}`
+          vscode.l10n.t(
+            "SSH config file not found: {0}",
+            getSshConfigPath()
+          )
         );
       }
     })

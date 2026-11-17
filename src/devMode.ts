@@ -87,7 +87,9 @@ export function assertDevWritePath(filePath: string): void {
   const userSsh = path.resolve(path.join(os.homedir(), ".ssh"));
   if (!sandboxRoot || !isInside(root, resolved) || isInside(userSsh, resolved)) {
     throw new Error(
-      "Mode dev : refus d'écrire ce fichier. ~/.ssh et le dépôt ne sont pas modifiés."
+      vscode.l10n.t(
+        "Dev mode: refused to write this file. ~/.ssh and the repo are not modified."
+      )
     );
   }
 }

@@ -164,10 +164,14 @@ export function folderLabel(entry: FolderEntry | LocalFolderEntry): string {
 export function assertRemotePath(remotePath: string): string {
   const trimmed = remotePath.trim();
   if (!trimmed.startsWith("/")) {
-    throw new Error("Le chemin distant doit être absolu (commencer par /).");
+    throw new Error(
+      vscode.l10n.t("Remote path must be absolute (start with /).")
+    );
   }
   if (trimmed.includes("~")) {
-    throw new Error("Le chemin distant ne doit pas contenir ~.");
+    throw new Error(
+      vscode.l10n.t("Remote path must not contain ~.")
+    );
   }
   return trimmed;
 }
@@ -176,12 +180,14 @@ export function assertRemotePath(remotePath: string): string {
 export function assertLocalPath(localPath: string): string {
   const trimmed = localPath.trim();
   if (!trimmed) {
-    throw new Error("Le chemin local ne peut pas être vide.");
+    throw new Error(vscode.l10n.t("Local path cannot be empty."));
   }
   const expanded = expandHome(trimmed);
   if (!path.isAbsolute(expanded)) {
     throw new Error(
-      "Le chemin local doit être absolu ou commencer par ~ (ex. ~/Documents/Projets)."
+      vscode.l10n.t(
+        "Local path must be absolute or start with ~ (e.g. ~/Documents/Projects)."
+      )
     );
   }
   return trimmed;
@@ -621,7 +627,9 @@ async function loadFoldersFile(filePath: string): Promise<FoldersFile> {
   try {
     parsed = JSON.parse(content);
   } catch {
-    throw new Error(`Fichier JSON invalide : ${filePath}`);
+    throw new Error(
+      vscode.l10n.t("Invalid JSON file: {0}", filePath)
+    );
   }
 
   const { data, repairedPaths } = normalizeFileWithMeta(parsed);
@@ -839,7 +847,9 @@ export async function addFolderEntry(
   const data = await readFoldersFile();
   const key = existingHostKey(data, host) ?? host;
   if (foldersForHost(data, key).some((item) => item.path === entry.path)) {
-    throw new Error("Ce dossier est déjà enregistré pour cet hôte.");
+    throw new Error(
+      vscode.l10n.t("This folder is already registered for this host.")
+    );
   }
   const list = data.folders[key] ?? [];
   list.push(entry);
@@ -859,7 +869,9 @@ export async function addLocalFolderEntry(
       sameLocalPath(item.path, pathValue)
     )
   ) {
-    throw new Error("Ce dossier local est déjà enregistré pour ce groupe.");
+    throw new Error(
+      vscode.l10n.t("This local folder is already registered for this group.")
+    );
   }
   const list = data.local ?? [];
   list.push({
@@ -881,7 +893,9 @@ export async function renameFolderEntry(
   const list = key ? data.folders[key] ?? [] : [];
   const entry = list.find((item) => item.path === remotePath);
   if (!key || !entry) {
-    throw new Error("Dossier introuvable dans la configuration.");
+    throw new Error(
+      vscode.l10n.t("Folder not found in configuration.")
+    );
   }
   const trimmed = label.trim();
   if (trimmed) {
@@ -904,7 +918,9 @@ export async function renameLocalFolderEntry(
       sameLocalPath(item.path, localPath)
   );
   if (!entry) {
-    throw new Error("Dossier local introuvable dans la configuration.");
+    throw new Error(
+      vscode.l10n.t("Local folder not found in configuration.")
+    );
   }
   const trimmed = label.trim();
   if (trimmed) {
@@ -964,7 +980,9 @@ export async function toggleFolderFavorite(
     ? (data.folders[key] ?? []).find((item) => item.path === remotePath)
     : undefined;
   if (!key || !entry) {
-    throw new Error("Dossier introuvable dans la configuration.");
+    throw new Error(
+      vscode.l10n.t("Folder not found in configuration.")
+    );
   }
   const next = entry.favorite !== true;
   if (next) {
@@ -988,7 +1006,9 @@ export async function toggleLocalFolderFavorite(
       sameLocalPath(item.path, localPath)
   );
   if (!entry) {
-    throw new Error("Dossier local introuvable dans la configuration.");
+    throw new Error(
+      vscode.l10n.t("Local folder not found in configuration.")
+    );
   }
   const next = entry.favorite !== true;
   if (next) {

@@ -56,7 +56,7 @@ describe("chemins locaux", () => {
   });
 
   it("refuse un chemin relatif", () => {
-    assert.throws(() => assertLocalPath("Documents/Projets"), /absolu|~/);
+    assert.throws(() => assertLocalPath("Documents/Projets"), /absolute|~/);
   });
 
   it("toTildePath / expandLocalPath / same sous-home", () => {
@@ -326,7 +326,7 @@ describe("ajout local sur fichier temporaire", () => {
           VirtualHost: "Prod",
           path: "~/Documents/Projets",
         }),
-      /déjà enregistré/
+      /already registered/
     );
   });
 

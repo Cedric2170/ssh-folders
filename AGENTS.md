@@ -1,5 +1,7 @@
 extension TypeScript, code dans src/, sortie dans out/, point d’entrée src/extension.ts ;
-textes visibles (commandes, vues, messages) en français ;
+textes UI via l10n officielle VS Code ; suivre la langue d’affichage de Cursor/VS Code (pas de setting maison) ; `"l10n": "./l10n"` dans package.json ;
+- manifeste (`contributes`) : `package.nls.json` = **anglais** (locale `en`) ; `package.nls.fr.json` = français ; ne pas utiliser `package.nls.en.json` ;
+- runtime (`vscode.l10n.t`) : chaînes source en **anglais** dans le code (la locale `en` n’applique pas de bundle) ; `l10n/bundle.l10n.fr.json` = français ; `l10n/bundle.l10n.json` = identité EN ; régénérer avec `npm run l10n:export` puis compléter les traductions FR ;
 npm run compile après un changement ; `npm test` pour les tests Node (mock vscode) des fonctionnalités ; test manuel via F5 (Run Extension) ou `npm run dev:host` si le débogueur bloque (`debugBrk`) ;
 par défaut F5 / `dev:host` lit le JSON réel ; bac à sable exemples avec `npm run dev:host:exemples` ou Run Extension (exemples) (marqueur `.vscode/ssh-folders-dev.mode`, prioritaire sur l'env `SSH_FOLDERS_DEV` qui peut rester collée au process Cursor) ; le bac à sable est semé une fois depuis `examples/` puis conserve les ajouts ; reset forcé avec `npm run dev:host:exemples:reset` (`SSH_FOLDERS_DEV_RESET=1`) ;
 ne pas utiliser Run Extension (isolé) / `--disable-extensions` si le thème (ex. D2 Dark) doit rester chargé ;
