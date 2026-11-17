@@ -1,9 +1,14 @@
-import * as fs from "fs/promises";
+import * as fs from "fs";
+import * as fsPromises from "fs/promises";
 import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 
 const ENV_NAME = "SSH_FOLDERS_DEV";
+/** Force la recopie des exemples par-dessus le bac à sable existant. */
+const RESET_ENV_NAME = "SSH_FOLDERS_DEV_RESET";
+/** Fichier local (écrit par npm / tâches) : `real` ou `sandbox`. Prioritaire sur l'env. */
+const MODE_FILE = path.join(".vscode", "ssh-folders-dev.mode");
 
 let enabled = false;
 let sandboxRoot = "";
@@ -19,14 +24,35 @@ function isInside(root: string, target: string): boolean {
 }
 
 /**
- * Actif seulement dans l'hôte de développement (F5) quand SSH_FOLDERS_DEV=1.
- * Run Extension pose cette variable. Run Extension (config réelle) la met à 0.
- * Un VSIX installé est en mode Production : la variable d'environnement est ignorée.
+ * Lit le mode demandé pour l'hôte de développement.
+ * Le fichier `.vscode/ssh-folders-dev.mode` prime sur `SSH_FOLDERS_DEV` :
+ * l'env peut rester collée au process Cursor après un ancien lancement.
+ * Absent / `real` → JSON réel. `sandbox` → exemples. Un VSIX ignore tout ça.
+ */
+function wantSandbox(extensionPath: string): boolean {
+  const marker = path.join(extensionPath, MODE_FILE);
+  try {
+    const mode = fs.readFileSync(marker, "utf8").trim().toLowerCase();
+    if (mode === "sandbox") {
+      return true;
+    }
+    if (mode === "real") {
+      return false;
+    }
+  } catch {
+    // pas de marqueur
+  }
+  return process.env[ENV_NAME] === "1";
+}
+
+/**
+ * Bac à sable (exemples/) seulement en Development + mode `sandbox`
+ * (fichier marqueur ou SSH_FOLDERS_DEV=1). Par défaut : fichiers réels.
  */
 export function initDevMode(context: vscode.ExtensionContext): boolean {
   enabled =
     context.extensionMode === vscode.ExtensionMode.Development &&
-    process.env[ENV_NAME] === "1";
+    wantSandbox(context.extensionPath);
   if (!enabled) {
     sandboxRoot = "";
     sshConfigPath = "";
@@ -66,7 +92,28 @@ export function assertDevWritePath(filePath: string): void {
   }
 }
 
-/** Recopie les exemples dans le stockage de l'extension. Ne touche ni ~/.ssh ni le dépôt. */
+async function copyIfMissingOrReset(
+  src: string,
+  dest: string,
+  reset: boolean
+): Promise<void> {
+  assertDevWritePath(dest);
+  if (!reset) {
+    try {
+      await fsPromises.access(dest);
+      return;
+    } catch {
+      // absent → seed
+    }
+  }
+  await fsPromises.copyFile(src, dest);
+}
+
+/**
+ * Initialise le bac à sable depuis `examples/` s'il est vide.
+ * Les ajouts (dossiers, libellés…) sont conservés entre F5 / relances.
+ * Recopie forcée si `SSH_FOLDERS_DEV_RESET=1` (script `dev:host:exemples:reset`).
+ */
 export async function prepareDevSandbox(
   context: vscode.ExtensionContext
 ): Promise<void> {
@@ -83,9 +130,8 @@ export async function prepareDevSandbox(
     "examples",
     "ssh-folders.example.json"
   );
-  assertDevWritePath(sshConfigPath);
-  assertDevWritePath(foldersConfigPath);
-  await fs.mkdir(sandboxRoot, { recursive: true });
-  await fs.copyFile(sshSrc, sshConfigPath);
-  await fs.copyFile(foldersSrc, foldersConfigPath);
+  const reset = process.env[RESET_ENV_NAME] === "1";
+  await fsPromises.mkdir(sandboxRoot, { recursive: true });
+  await copyIfMissingOrReset(sshSrc, sshConfigPath, reset);
+  await copyIfMissingOrReset(foldersSrc, foldersConfigPath, reset);
 }

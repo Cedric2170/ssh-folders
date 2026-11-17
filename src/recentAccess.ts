@@ -7,6 +7,8 @@ export type RecentAccess = {
   kind: "host" | "folder";
   alias: string;
   path?: string;
+  /** true = VirtualHost / dossier local du poste de base. */
+  local?: boolean;
   at: number;
 };
 
@@ -26,11 +28,14 @@ export function initRecentAccess(
   onChange = listener;
 }
 
-function accessKey(entry: Pick<RecentAccess, "kind" | "alias" | "path">): string {
+function accessKey(
+  entry: Pick<RecentAccess, "kind" | "alias" | "path" | "local">
+): string {
+  const scope = entry.local ? "local" : "ssh";
   if (entry.kind === "folder" && entry.path) {
-    return `folder:${entry.alias.toLowerCase()}:${entry.path}`;
+    return `${scope}:folder:${entry.alias.toLowerCase()}:${entry.path}`;
   }
-  return `host:${entry.alias.toLowerCase()}`;
+  return `${scope}:host:${entry.alias.toLowerCase()}`;
 }
 
 function isRecentAccess(value: unknown): value is RecentAccess {
@@ -48,6 +53,9 @@ function isRecentAccess(value: unknown): value is RecentAccess {
     return false;
   }
   if (entry.kind === "folder" && typeof entry.path !== "string") {
+    return false;
+  }
+  if (entry.local !== undefined && typeof entry.local !== "boolean") {
     return false;
   }
   return true;
@@ -86,6 +94,7 @@ export async function recordAccess(
       kind: entry.kind,
       alias: entry.alias,
       ...(entry.path ? { path: entry.path } : {}),
+      ...(entry.local ? { local: true } : {}),
       at: Date.now(),
     },
     ...storedAccess().filter((item) => accessKey(item) !== accessKey(entry)),
@@ -103,7 +112,7 @@ async function persistAccess(next: RecentAccess[]): Promise<void> {
 }
 
 export async function removeAccess(
-  entry: Pick<RecentAccess, "kind" | "alias" | "path">
+  entry: Pick<RecentAccess, "kind" | "alias" | "path" | "local">
 ): Promise<void> {
   const next = storedAccess().filter(
     (item) => accessKey(item) !== accessKey(entry)

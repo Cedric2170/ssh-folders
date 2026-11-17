@@ -70,6 +70,27 @@ ouvre ce chemin au lieu d'une fenêtre distante vide.
 (20 par défaut, entre 1 et 100). L'historique lui-même n'est pas dans ce JSON :
 il est stocké dans l'état global de l'extension Cursor / VS Code.
 
+`defaults.SortAlphabetical` trie les hôtes SSH, les dossiers sous chaque hôte
+et la liste des dossiers. Vrai par défaut. `false` conserve l'ordre du fichier
+SSH config et du JSON. La vue **Derniers accès** reste triée par date.
+
+`defaults.GroupSameName` regroupe dans la vue A-Z les dossiers d'une même
+famille (`grafana` et `grafana-dev`). Vrai par défaut. `false` affiche chaque
+dossier séparément.
+
+`defaults.HiddenHosts` masque des alias Host dans l'arbre, les vues dossiers /
+derniers accès, et le choix d'hôte du bouton +. Liste vide par défaut.
+Correspondance sans casse ; `*` et `?` acceptés. Exemple :
+`["gitlab*", "github.com"]`.
+
+`defaults.LastFolder` place ces libellés en fin de liste (vue par hôte et
+vue A-Z). Correspondance sans casse avec le `label`. Par défaut :
+`["Projects", "_old"]`. L'ordre du tableau fixe l'ordre relatif en bas.
+
+Au chargement, les clés de `defaults` qui ont une valeur par défaut et qui
+manquent dans le JSON sont ajoutées. Une clé déjà présente n'est pas modifiée.
+Le catalogue est `DEFAULT_SETTINGS` dans `src/foldersConfig.ts`.
+
 ### Ajouter un dossier
 
 Le bouton **+** ouvre d'abord la liste des hôtes SSH :
@@ -86,9 +107,10 @@ Ensuite :
 
 ### Vues
 
-La vue **Dossiers A-Z** trie alphabétiquement, affiche `Census-Agent`
-(majuscule en début de mot, après un espace ou un tiret) et regroupe les
-noms de la même famille (`census-agent`, `census-dev` sous **Census**).
+La vue **Dossiers A-Z** trie alphabétiquement (sauf si `SortAlphabetical` vaut `false`), affiche `Census-Agent`
+(majuscule en début de mot, après un espace ou un tiret) et, si
+`GroupSameName` est vrai, regroupe les noms de la même famille
+(`census-agent`, `census-dev` sous **Census**).
 
 La vue **Derniers accès** liste les dernières connexions (hôte ou dossier),
 triées par date. Un bouton **-** à droite retire une entrée de l'historique,
@@ -107,7 +129,26 @@ La connexion Remote-SSH utilise l'alias tel qu'il est écrit dans le fichier SSH
 Comptes et jetons se créent dans le navigateur. L'identifiant public est
 `cedric217` des deux côtés : éditeur Marketplace et namespace Open VSX.
 Le compte Eclipse `Cedric2170` possède ce namespace, il n'en est pas le nom.
-Ne pas écrire les jetons dans le dépôt. Depuis ce dossier :
+Ne pas écrire les jetons dans le dépôt.
+
+### Release sur `main` (un seul commit)
+
+Travailler et committer le détail sur **`dev`**. Quand la version `x.y.z` est prête
+(`package.json`, `CHANGELOG.md`, What's New) :
+
+~~~bash
+npm run release:main
+# optionnel :
+npm run release:main -- --tag
+npm run release:main -- --publish
+~~~
+
+Cela squash `dev` → `main` avec le message `vX.Y.Z`, pousse `main`, et revient
+sur `dev`. Skill Cursor : `release-main`.
+
+### Marketplace / Open VSX
+
+Depuis ce dossier (après release, ou avec `--publish`) :
 
 ~~~bash
 npm run package
@@ -115,7 +156,7 @@ npm run publish:vscode
 npm run publish:openvsx
 ~~~
 
-`npm run package` écrit `vsix/ssh-folders-<version>.vsix` et, si elle manque, la section de cette version dans `vsix/README.md`. Une section déjà écrite n'est pas réécrite. Le script synchronise aussi dans `README.md` uniquement le changelog de la version courante (`Nouveautés / What's new`). `publish:vscode`
+`npm run package` écrit `vsix/ssh-folders-<version>.vsix` et, si elle manque, la section de cette version dans `vsix/README.md` (journal interne, y compris `x.y.z-1`). Une section déjà écrite n'est pas réécrite. Si la version est publiable (`x.y.z` sans `-1`), le script synchronise aussi `CHANGELOG.md` et **What's New** dans `README.md`. `publish:vscode`
 repackage si besoin puis publie ce fichier. `publish:openvsx` envoie le même
 `.vsix`. Le jeton Open VSX vient de `OVSX_PAT` ou de `npx ovsx login cedric217`.
 
@@ -129,30 +170,41 @@ une mise à jour.
 L'extension n'est **pas** active dans la fenêtre où tu édites le code.
 F5 ouvre une **seconde** fenêtre Cursor (Extension Development Host).
 
-1. Ouvre le dossier `vsCodeSSH` dans Cursor.
+1. Ouvre le dossier du projet dans Cursor.
 2. `npm install` puis `npm run compile`.
 3. Exécuter et déboguer (`Cmd+Shift+D`), configuration **Run Extension**, F5.
-   Les configs lancent l’Extension Development Host avec `--disable-extensions`
-   (seule l’extension du workspace est chargée). **Run Extension** et
-   **Run Extension (isolé)** posent `SSH_FOLDERS_DEV=1`.
+   **Par défaut**, la fenêtre de test lit et écrit le JSON réel
+   (`~/.ssh/extensions/ssh-folders.json`) et le fichier SSH config.
+   Le mode est fixé par `.vscode/ssh-folders-dev.mode` (`real` ou `sandbox`),
+   plus fiable que `SSH_FOLDERS_DEV` (l'env peut rester collée au process
+   Cursor après un ancien lancement).
+   **Run Extension (exemples)** / `npm run dev:host:exemples` → bac à sable.
+   **Run Extension (isolé)** ajoute aussi `--disable-extensions` : thème D2
+   Dark coupé, UI parfois noire.
 4. Dans la fenêtre Extension Development Host, ouvre **SSH - Folders**.
-   Le titre se termine par `· dev` et la vue montre les hôtes d'exemple.
 
-### Fichiers d'exemple
+Si F5 (ou Ctrl+F5) affiche *Extension host did not start in 10 seconds*
+(`debugBrk: true`), le débogueur Cursor n'attache pas. Contournement :
 
-`SSH_FOLDERS_DEV=1` n'est honoré que dans l'hôte de développement (F5).
-Un `.vsix` installé est en mode Production et ignore cette variable, même
-si elle est définie dans l'environnement.
+~~~bash
+npm run dev:host
+~~~
 
-La vue lit une copie des fichiers `examples/`, recréée à chaque lancement
-dans le stockage de l'extension. `~/.ssh/config`,
-`~/.ssh/extensions/ssh-folders.json`, le schéma à côté, l'historique des
-accès et le réglage `sshFolders.view` ne sont pas écrits. Pour revoir ces
-fichiers depuis F5, lance **Run Extension (config réelle)** (`SSH_FOLDERS_DEV=0`).
-Le VSIX installé les affiche toujours.
+Ou palette → *Tasks: Run Task* → **Run Extension Host (sans debug)**.
+Sinon : `npm run package` puis installer le `.vsix`.
 
-Ajouter ou supprimer un dossier en mode dev modifie seulement la copie,
-effacée au prochain F5.
+### Fichiers d'exemple (bac à sable)
+
+Activer avec **Run Extension (exemples)** ou `npm run dev:host:exemples`
+(écrit `sandbox` dans `.vscode/ssh-folders-dev.mode`). Un `.vsix` installé
+ignore ce mode.
+
+Dans ce mode, la vue lit une copie des fichiers `examples/` dans le
+stockage de l'extension (semée une seule fois si absente). `~/.ssh/config`
+et `~/.ssh/extensions/ssh-folders.json` ne sont pas écrits. Le titre de la
+vue se termine par `· dev`. Ajouter ou supprimer un dossier modifie cette
+copie et est conservé entre F5 / relances. Pour repartir des exemples :
+`npm run dev:host:exemples:reset` (`SSH_FOLDERS_DEV_RESET=1`).
 
 Pour recompiler après une modification : `npm run compile`, puis relancer F5.
 

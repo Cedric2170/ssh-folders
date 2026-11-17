@@ -1,6 +1,11 @@
 # IDE / éditeur (préférences locales)
 .vscode/settings.json
+.vscode/ssh-folders-dev.mode
 .cursor/**
+!.cursor/rules/
+!.cursor/rules/**
+!.cursor/skills/
+!.cursor/skills/**
 
 # Secrets et variables d'environnement
 .env

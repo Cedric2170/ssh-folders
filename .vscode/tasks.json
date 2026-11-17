@@ -17,6 +17,41 @@
       "script": "watch",
       "problemMatcher": "$tsc-watch",
       "isBackground": true
+    },
+    {
+      "label": "set-dev-mode-real",
+      "type": "shell",
+      "command": "printf 'real\\n' > \"${workspaceFolder}/.vscode/ssh-folders-dev.mode\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "set-dev-mode-sandbox",
+      "type": "shell",
+      "command": "printf 'sandbox\\n' > \"${workspaceFolder}/.vscode/ssh-folders-dev.mode\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "pre-run-real",
+      "dependsOrder": "sequence",
+      "dependsOn": ["set-dev-mode-real", "compile"],
+      "problemMatcher": []
+    },
+    {
+      "label": "pre-run-sandbox",
+      "dependsOrder": "sequence",
+      "dependsOn": ["set-dev-mode-sandbox", "compile"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Extension Host (sans debug)",
+      "dependsOn": ["pre-run-real"],
+      "type": "shell",
+      "command": "cursor --extensionDevelopmentPath=\"${workspaceFolder}\"",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SSH - Folders",
-  "description": "Dossiers distants favoris, indexés par alias Host du fichier SSH config.",
+  "description": "Dossiers distants favoris (alias Host SSH) et dossiers locaux du poste de base (local[].VirtualHost).",
   "type": "object",
   "additionalProperties": false,
   "required": ["folders"],
@@ -25,8 +25,36 @@
           "default": 20,
           "description": "Nombre de derniers accès affichés dans la vue correspondante (1 à 100, 20 par défaut)."
         },
+        "SortAlphabetical": {
+          "type": "boolean",
+          "default": true,
+          "description": "Trie les hôtes SSH, les dossiers sous chaque hôte et la liste des dossiers. Vrai par défaut. La vue derniers accès reste triée par date de connexion."
+        },
+        "GroupSameName": {
+          "type": "boolean",
+          "default": true,
+          "description": "Dans la vue dossiers A-Z, regroupe les dossiers d'une même famille (ex. grafana et grafana-dev). Vrai par défaut. false affiche chaque dossier séparément."
+        },
+        "HiddenHosts": {
+          "type": "array",
+          "default": [],
+          "description": "Alias Host SSH à masquer dans l'arbre et le choix d'hôte. Correspondance sans casse. Jokers * et ? acceptés. Exemple : [\"gitlab*\", \"github.com\"].",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "LastFolder": {
+          "type": "array",
+          "default": ["Projects", "_old"],
+          "description": "Libellés de dossiers placés en fin de liste (vue par hôte et vue A-Z). Correspondance sans casse avec le label affiché. L'ordre du tableau fixe l'ordre relatif en bas de liste. Par défaut : Projects puis _old.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "ActiveColor": {
-          "description": "Couleur de la connexion et du dossier ouverts. Vert par défaut. Noms : green (vert), blue (bleu), orange, red (rouge), purple (violet), yellow (jaune). Ou un code hexadécimal. Exemple : \"purple\" ou \"#7c3aed\".",
+          "description": "Valeur historique conservée dans le JSON. La couleur affichée vient de la couleur de thème sshFolders.activeForeground (Settings → workbench.colorCustomizations), pas de ce champ.",
           "default": "green",
           "anyOf": [
             {
@@ -71,6 +99,32 @@
               "pattern": "^/",
               "description": "Chemin POSIX absolu sur l'hôte distant (pas de ~)."
             }
+          }
+        }
+      }
+    },
+    "local": {
+      "type": "array",
+      "description": "Dossiers locaux du poste de base, regroupés par VirtualHost (serveur virtuel affiché comme un hôte SSH). Fichiers individuels non pris en charge pour l'instant.",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["VirtualHost", "path"],
+        "properties": {
+          "VirtualHost": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Nom du serveur virtuel local (ex. Prod). Plusieurs dossiers peuvent partager le même VirtualHost."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Chemin local absolu ou commençant par ~ (ex. ~/Documents/Projets)."
+          },
+          "label": {
+            "type": "string",
+            "description": "Libellé affiché. Si omis, le nom du dossier est utilisé."
           }
         }
       }

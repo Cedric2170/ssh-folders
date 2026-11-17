@@ -4,6 +4,7 @@ const path = require("path");
 
 const root = path.join(__dirname, "..");
 const vsixReadmePath = path.join(root, "vsix", "README.md");
+const changelogPath = path.join(root, "CHANGELOG.md");
 const publicReadmePath = path.join(root, "README.md");
 
 const PUBLIC_START = "<!-- latest-changelog:start -->";
@@ -19,6 +20,11 @@ function versionOfPackage() {
     throw new Error("version absente de package.json");
   }
   return pkg.version;
+}
+
+/** Versions Marketplace publiables : `x.y.z` sans suffixe `-1`, `-2`, etc. */
+function isPublishedVersion(version) {
+  return /^\d+\.\d+\.\d+$/.test(version);
 }
 
 function hasSection(readme, version) {
@@ -74,6 +80,30 @@ function insertSection(readme, version, body, sha) {
   return `${trimmed}\n\n${rev}\n\n${section}`;
 }
 
+function insertChangelogSection(changelog, version, body) {
+  const section = `## ${version}\n\n${body.trimEnd()}\n\n`;
+  if (hasSection(changelog, version)) {
+    return changelog;
+  }
+  // Insère juste après le titre / intro (première ligne ## version ou fin d'intro).
+  const lines = changelog.split("\n");
+  let insertAt = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^## /.test(lines[i])) {
+      insertAt = i;
+      break;
+    }
+    insertAt = i + 1;
+  }
+  const next = [
+    ...lines.slice(0, insertAt),
+    section.trimEnd(),
+    "",
+    ...lines.slice(insertAt),
+  ].join("\n");
+  return next.endsWith("\n") ? next : `${next}\n`;
+}
+
 function publicChangelogBlock(version, body) {
   const bullets = body.trimEnd();
   return [
@@ -91,18 +121,25 @@ function updatePublicReadme(version, body) {
   }
   const existing = fs.readFileSync(publicReadmePath, "utf8");
   const block = publicChangelogBlock(version, body);
-  const section = [
-    "## Nouveautés / What's new",
-    "",
-    "Dernière version publiée uniquement.",
-    "",
-    "Latest published release only.",
-    "",
-    block,
-  ].join("\n") + "\n\n";
+  const section =
+    [
+      "## What's New",
+      "",
+      "Dernière version uniquement. Historique complet : onglet **Changelog** du Marketplace (`CHANGELOG.md`).",
+      "",
+      block,
+    ].join("\n") + "\n\n";
 
   let next;
-  if (/^## Nouveautés \/ What's new\s*$/m.test(existing) && existing.includes(PUBLIC_END)) {
+  if (/^## What's New\s*$/m.test(existing) && existing.includes(PUBLIC_END)) {
+    next = existing.replace(
+      /## What's New\n[\s\S]*?<!-- latest-changelog:end -->\n*/,
+      section
+    );
+  } else if (
+    /^## Nouveautés \/ What's new\s*$/m.test(existing) &&
+    existing.includes(PUBLIC_END)
+  ) {
     next = existing.replace(
       /## Nouveautés \/ What's new\n[\s\S]*?<!-- latest-changelog:end -->\n*/,
       section
@@ -154,10 +191,31 @@ function ensureVsixSection(version) {
   return body;
 }
 
+/** Onglet Changelog du Marketplace : fichier racine CHANGELOG.md. */
+function syncChangelog(version, body) {
+  const header = "# Changelog\n\n";
+  const existing = fs.existsSync(changelogPath)
+    ? fs.readFileSync(changelogPath, "utf8")
+    : header;
+  const next = hasSection(existing, version)
+    ? existing
+    : insertChangelogSection(
+        existing.startsWith("# ") ? existing : header + existing,
+        version,
+        body
+      );
+  fs.writeFileSync(changelogPath, next.endsWith("\n") ? next : `${next}\n`, "utf8");
+}
+
 function main() {
   const version = versionOfPackage();
+  // Toujours : journal interne (inclut les builds locaux x.y.z-1).
   const body = ensureVsixSection(version);
-  updatePublicReadme(version, body);
+  // Public (Marketplace) uniquement pour les versions x.y.z publiables.
+  if (isPublishedVersion(version)) {
+    syncChangelog(version, body);
+    updatePublicReadme(version, body);
+  }
 }
 
 main();

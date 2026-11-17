@@ -1,8 +1,14 @@
-import { folderLabel, type FolderEntry } from "./foldersConfig";
+import {
+  folderLabel,
+  lastFolderRank,
+  type FolderEntry,
+  type FoldersFile,
+} from "./foldersConfig";
 
 export type AzFolderRef = {
   alias: string;
   entry: FolderEntry;
+  local?: boolean;
 };
 
 export type AzGroup = {
@@ -67,23 +73,112 @@ function longestCommonPrefix(values: string[]): string {
   return prefix.replace(/[-_\s]+$/u, "");
 }
 
-function compareAzText(a: string, b: string): number {
+export function compareText(a: string, b: string): number {
   return a.localeCompare(b, "fr", COMPARE);
 }
 
-function compareRefs(a: AzFolderRef, b: AzFolderRef): number {
-  const byName = compareAzText(displayFolderName(a.entry), displayFolderName(b.entry));
+export function sortHostAliases(aliases: readonly string[]): string[] {
+  return [...aliases].sort(compareText);
+}
+
+function compareByLastFolder(
+  aLabel: string,
+  bLabel: string,
+  data: FoldersFile | undefined
+): number {
+  const aRank = lastFolderRank(aLabel, data);
+  const bRank = lastFolderRank(bLabel, data);
+  const aLast = aRank >= 0;
+  const bLast = bRank >= 0;
+  if (aLast !== bLast) {
+    return aLast ? 1 : -1;
+  }
+  if (aLast && bLast && aRank !== bRank) {
+    return aRank - bRank;
+  }
+  return 0;
+}
+
+export function sortFolderEntries(
+  entries: readonly FolderEntry[],
+  options: { alphabetical?: boolean; data?: FoldersFile } = {}
+): FolderEntry[] {
+  const alphabetical = options.alphabetical !== false;
+  const data = options.data;
+  return [...entries].sort((a, b) => {
+    const byLast = compareByLastFolder(folderLabel(a), folderLabel(b), data);
+    if (byLast !== 0) {
+      return byLast;
+    }
+    if (!alphabetical) {
+      return 0;
+    }
+    const byName = compareText(displayFolderName(a), displayFolderName(b));
+    if (byName !== 0) {
+      return byName;
+    }
+    return a.path.localeCompare(b.path);
+  });
+}
+
+function compareRefs(
+  a: AzFolderRef,
+  b: AzFolderRef,
+  data: FoldersFile | undefined
+): number {
+  const byLast = compareByLastFolder(
+    folderLabel(a.entry),
+    folderLabel(b.entry),
+    data
+  );
+  if (byLast !== 0) {
+    return byLast;
+  }
+  const byName = compareText(displayFolderName(a.entry), displayFolderName(b.entry));
   if (byName !== 0) {
     return byName;
   }
-  const byHost = compareAzText(a.alias, b.alias);
+  const byHost = compareText(a.alias, b.alias);
   if (byHost !== 0) {
     return byHost;
   }
   return a.entry.path.localeCompare(b.entry.path);
 }
 
-export function buildAzFolderTree(items: AzFolderRef[]): AzNode[] {
+function nodeLastFolderRank(
+  node: AzNode,
+  data: FoldersFile | undefined
+): number {
+  if (node.kind === "leaf") {
+    return lastFolderRank(folderLabel(node.item.entry), data);
+  }
+  return lastFolderRank(node.name, data);
+}
+
+export function buildAzFolderTree(
+  items: AzFolderRef[],
+  options: { sort?: boolean; group?: boolean; data?: FoldersFile } = {}
+): AzNode[] {
+  const sort = options.sort !== false;
+  const group = options.group !== false;
+  const data = options.data;
+
+  if (!group) {
+    const leaves: AzLeaf[] = items.map((item) => ({
+      kind: "leaf",
+      name: displayFolderName(item.entry),
+      item,
+    }));
+    if (sort) {
+      leaves.sort((a, b) => compareRefs(a.item, b.item, data));
+    } else if (data) {
+      leaves.sort((a, b) =>
+        compareByLastFolder(folderLabel(a.item.entry), folderLabel(b.item.entry), data)
+      );
+    }
+    return leaves;
+  }
+
   const buckets = new Map<string, AzFolderRef[]>();
   for (const item of items) {
     const stem = groupStem(folderLabel(item.entry));
@@ -94,7 +189,9 @@ export function buildAzFolderTree(items: AzFolderRef[]): AzNode[] {
 
   const nodes: AzNode[] = [];
   for (const [stem, list] of buckets) {
-    list.sort(compareRefs);
+    if (sort) {
+      list.sort((a, b) => compareRefs(a, b, data));
+    }
     if (list.length === 1) {
       const item = list[0];
       nodes.push({
@@ -113,6 +210,34 @@ export function buildAzFolderTree(items: AzFolderRef[]): AzNode[] {
     });
   }
 
-  nodes.sort((a, b) => compareAzText(a.name, b.name));
+  if (sort) {
+    nodes.sort((a, b) => {
+      const aRank = nodeLastFolderRank(a, data);
+      const bRank = nodeLastFolderRank(b, data);
+      const aLast = aRank >= 0;
+      const bLast = bRank >= 0;
+      if (aLast !== bLast) {
+        return aLast ? 1 : -1;
+      }
+      if (aLast && bLast && aRank !== bRank) {
+        return aRank - bRank;
+      }
+      return compareText(a.name, b.name);
+    });
+  } else if (data) {
+    nodes.sort((a, b) => {
+      const aRank = nodeLastFolderRank(a, data);
+      const bRank = nodeLastFolderRank(b, data);
+      const aLast = aRank >= 0;
+      const bLast = bRank >= 0;
+      if (aLast !== bLast) {
+        return aLast ? 1 : -1;
+      }
+      if (aLast && bLast && aRank !== bRank) {
+        return aRank - bRank;
+      }
+      return 0;
+    });
+  }
   return nodes;
 }

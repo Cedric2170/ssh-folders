@@ -1,0 +1,15 @@
+---
+description: Invariants de l'extension SSH - Folders
+alwaysApply: true
+---
+
+# SSH - Folders
+- Bac à sable exemples uniquement si `.vscode/ssh-folders-dev.mode` vaut `sandbox` (ou `SSH_FOLDERS_DEV=1` sans marqueur). Par défaut (`real` / F5 / `npm run dev:host`) : fichiers réels `~/.ssh/config` et `~/.ssh/extensions/ssh-folders.json`.
+- Bac à sable : seed une fois depuis `examples/`, les ajouts persistent ; `SSH_FOLDERS_DEV_RESET=1` / `dev:host:exemples:reset` pour recoller les exemples.
+- Release : `dev` = détail ; `npm run release:main` → squash sur `main` en commit `vX.Y.Z` (skill `release-main`).
+- Un chemin distant est POSIX et absolu (`/...`).
+- Un chemin local (`local[]`) est absolu ou `~/...` ; regroupé par `VirtualHost` (pas de fichiers individuels pour l’instant).
+- Deux alias SSH désignent le même hôte si seule la casse diffère. La connexion Remote-SSH garde l'alias tel qu'écrit dans le fichier SSH config.
+- L'extension est de type `ui` : elle tourne dans la fenêtre locale, Remote-SSH ouvre la fenêtre distante.
+- Ne pas enregistrer deux fois la vue `sshFolders` ni la commande `sshFolders.refresh`.
+
