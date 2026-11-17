@@ -107,6 +107,11 @@
         "title": "SSH - Folders: Supprimer le dossier"
       },
       {
+        "command": "sshFolders.toggleFavorite",
+        "title": "SSH - Folders: Favori",
+        "icon": "$(star)"
+      },
+      {
         "command": "sshFolders.removeRecent",
         "title": "Retirer des derniers accès",
         "category": "SSH - Folders",
@@ -209,14 +214,24 @@
           "group": "0_connect@2"
         },
         {
+          "command": "sshFolders.toggleFavorite",
+          "when": "view == sshFolders && (viewItem == host || viewItem == localHost || viewItem == folder || viewItem == localFolder)",
+          "group": "inline@4"
+        },
+        {
+          "command": "sshFolders.toggleFavorite",
+          "when": "view == sshFolders && (viewItem == host || viewItem == localHost || viewItem == folder || viewItem == localFolder)",
+          "group": "1_edit@0"
+        },
+        {
           "command": "sshFolders.renameFolder",
           "when": "view == sshFolders && (viewItem == folder || viewItem == localFolder)",
-          "group": "1_edit"
+          "group": "1_edit@1"
         },
         {
           "command": "sshFolders.removeFolder",
           "when": "view == sshFolders && (viewItem == folder || viewItem == localFolder)",
-          "group": "1_edit"
+          "group": "1_edit@2"
         }
       ],
       "commandPalette": [
@@ -230,6 +245,10 @@
         },
         {
           "command": "sshFolders.removeRecent",
+          "when": "false"
+        },
+        {
+          "command": "sshFolders.toggleFavorite",
           "when": "false"
         }
       ]

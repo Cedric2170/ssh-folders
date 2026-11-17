@@ -1,6 +1,7 @@
 import {
   folderLabel,
   isArchiveFolderPath,
+  isFavoriteFolder,
   lastFolderRank,
   type FolderEntry,
   type FoldersFile,
@@ -95,6 +96,18 @@ function compareByArchive(
   return 0;
 }
 
+function compareByFavorite(
+  a: FolderEntry,
+  b: FolderEntry
+): number {
+  const aFav = isFavoriteFolder(a);
+  const bFav = isFavoriteFolder(b);
+  if (aFav !== bFav) {
+    return aFav ? -1 : 1;
+  }
+  return 0;
+}
+
 function compareByLastFolder(
   aLabel: string,
   bLabel: string,
@@ -124,6 +137,10 @@ export function sortFolderEntries(
     if (byArch !== 0) {
       return byArch;
     }
+    const byFav = compareByFavorite(a, b);
+    if (byFav !== 0) {
+      return byFav;
+    }
     const byLast = compareByLastFolder(folderLabel(a), folderLabel(b), data);
     if (byLast !== 0) {
       return byLast;
@@ -147,6 +164,10 @@ function compareRefs(
   const byArch = compareByArchive(a.entry.path, b.entry.path, data);
   if (byArch !== 0) {
     return byArch;
+  }
+  const byFav = compareByFavorite(a.entry, b.entry);
+  if (byFav !== 0) {
+    return byFav;
   }
   const byLast = compareByLastFolder(
     folderLabel(a.entry),

@@ -5,6 +5,7 @@ par défaut F5 / `dev:host` lit le JSON réel ; bac à sable exemples avec `npm 
 ne pas utiliser Run Extension (isolé) / `--disable-extensions` si le thème (ex. D2 Dark) doit rester chargé ;
 ne pas monter version dans package.json ni lancer publish:* / release:main sans demande ;
 release Marketplace : travailler sur `dev` ; `npm run release:main` squash vers `main` en un commit `vX.Y.Z` (skill `release-main`) ; détail reste sur `dev` ;
+`todo.md` (local, gitignore) : ne garder que le fait depuis le dernier commit `main` et le reste à faire, en conservant les titres de section ; après `release:main`, retirer les `[x]` livrés (skill `release-main`) ;
 README.md est la page publique (Details + What's New) ; CHANGELOG.md = versions publiées `x.y.z` seulement (onglet Changelog) ; builds locaux `x.y.z-1` détaillés dans `vsix/README.md` uniquement ; dev.md reste local ;
 ne pas committer de jetons (OVSX_PAT, .env) ;
 LF, UTF-8, indentation 2 espaces, comme .editorconfig ;

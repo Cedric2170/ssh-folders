@@ -144,8 +144,9 @@ export function activeRemotePathForHost(alias: string): string | undefined {
 }
 
 /**
- * Chemin proposé à l'ajout d'un favori distant : dossier ouvert s'il existe,
- * sinon `DefaultFolder`. `openPath` = fenêtre courante ou autre fenêtre suivie.
+ * Chemin proposé à l'ajout (`+`) : dossier déjà ouvert pour l'hôte s'il existe,
+ * sinon `DefaultFolder` comme proposition de base. Le champ reste éditable
+ * librement (aucun forçage vers ce chemin).
  */
 export function suggestedRemoteAddPath(
   defaultFolder: string | undefined,

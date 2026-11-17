@@ -8,6 +8,8 @@ import {
   foldersForHost,
   groupSameName,
   isArchiveFolderPath,
+  isFavoriteFolder,
+  isFavoriteHost,
   isHostHidden,
   localFoldersForHost,
   localVirtualHosts,
@@ -19,6 +21,7 @@ import {
 } from "./foldersConfig";
 import {
   buildAzFolderTree,
+  compareText,
   displayFolderName,
   sortFolderEntries,
   type AzFolderRef,
@@ -85,14 +88,19 @@ function activeIcon(iconId: string, active: boolean): vscode.ThemeIcon {
   return new vscode.ThemeIcon(iconId, active ? activeColor : undefined);
 }
 
-function folderIcon(active: boolean, archive: boolean): vscode.ThemeIcon {
+function folderIcon(
+  active: boolean,
+  archive: boolean,
+  favorite: boolean
+): vscode.ThemeIcon {
+  const iconId = favorite ? "star-full" : "symbol-folder";
   if (active) {
-    return new vscode.ThemeIcon("symbol-folder", activeColor);
+    return new vscode.ThemeIcon(iconId, activeColor);
   }
   if (archive) {
-    return new vscode.ThemeIcon("symbol-folder", archiveColor);
+    return new vscode.ThemeIcon(iconId, archiveColor);
   }
-  return new vscode.ThemeIcon("symbol-folder");
+  return new vscode.ThemeIcon(iconId);
 }
 
 function activeResource(id: string): vscode.Uri {
@@ -144,6 +152,7 @@ export class HostItem extends vscode.TreeItem {
     | "recentLocalHost";
   readonly kind = "host" as const;
   readonly local: boolean;
+  readonly favorite: boolean;
 
   constructor(
     public readonly alias: string,
@@ -156,6 +165,8 @@ export class HostItem extends vscode.TreeItem {
   ) {
     super(alias, vscode.TreeItemCollapsibleState.Collapsed);
     this.local = options.local === true;
+    this.favorite =
+      options.recent !== true && isFavoriteHost(alias, cachedFoldersFile());
     if (this.local) {
       this.contextValue = options.recent ? "recentLocalHost" : "localHost";
       this.id = options.recent
@@ -166,13 +177,18 @@ export class HostItem extends vscode.TreeItem {
       this.id = options.recent ? `recent:host:${alias}` : `host:${alias}`;
     }
     const active = hostIsActive(alias, this.local);
-    this.iconPath = activeIcon(
-      this.local ? "device-desktop" : "server",
-      active
-    );
+    const baseIcon = this.local
+      ? "device-desktop"
+      : this.favorite
+        ? "star-full"
+        : "server";
+    this.iconPath = activeIcon(baseIcon, active);
     this.tooltip =
       options.tooltip ??
       (this.local ? `${alias} (local)` : alias);
+    if (this.favorite) {
+      this.tooltip = `${this.tooltip}\nFavori`;
+    }
     if (active) {
       this.resourceUri = activeResource(this.id);
       this.tooltip = `${this.tooltip}\n${
@@ -214,6 +230,7 @@ export class FolderItem extends vscode.TreeItem {
   readonly path: string;
   readonly active: boolean;
   readonly archive: boolean;
+  readonly favorite: boolean;
   readonly local: boolean;
 
   constructor(
@@ -226,6 +243,8 @@ export class FolderItem extends vscode.TreeItem {
       tooltip?: string;
       recent?: boolean;
       local?: boolean;
+      /** Préfixe d'id pour une copie en section Favoris (vue A-Z). */
+      idPrefix?: string;
     } = {}
   ) {
     super(
@@ -233,16 +252,18 @@ export class FolderItem extends vscode.TreeItem {
       vscode.TreeItemCollapsibleState.None
     );
     this.local = options.local === true;
+    this.favorite = isFavoriteFolder(entry);
+    const idPrefix = options.idPrefix ?? "";
     if (this.local) {
       this.contextValue = options.recent ? "recentLocalFolder" : "localFolder";
       this.id = options.recent
         ? `recent:localFolder:${alias}:${entry.path}`
-        : `localFolder:${alias}:${entry.path}`;
+        : `${idPrefix}localFolder:${alias}:${entry.path}`;
     } else {
       this.contextValue = options.recent ? "recentFolder" : "folder";
       this.id = options.recent
         ? `recent:folder:${alias}:${entry.path}`
-        : `folder:${alias}:${entry.path}`;
+        : `${idPrefix}folder:${alias}:${entry.path}`;
     }
     this.path = entry.path;
     this.active = folderIsActive(alias, entry.path, this.local);
@@ -251,7 +272,7 @@ export class FolderItem extends vscode.TreeItem {
       isArchiveFolderPath(entry.path, cachedFoldersFile());
     // Même icône local/distant : le glyphe `folder` décale le libellé (fausse indentation).
     // La distinction reste dans la description (`· local`) et l'icône du VirtualHost.
-    this.iconPath = folderIcon(this.active, this.archive);
+    this.iconPath = folderIcon(this.active, this.archive, this.favorite);
     this.command = {
       command: "sshFolders.openInNewWindow",
       title: "Ouvrir dans une nouvelle fenêtre",
@@ -276,6 +297,9 @@ export class FolderItem extends vscode.TreeItem {
       (options.flat
         ? `${this.label} — ${alias}:${entry.path}`
         : `${alias}:${entry.path}`);
+    if (this.favorite) {
+      this.tooltip = `${this.tooltip}\nFavori`;
+    }
     if (this.active) {
       this.resourceUri = activeResource(this.id);
       this.tooltip = `${this.tooltip}\nDossier actif`;
@@ -302,22 +326,37 @@ export class FolderGroupItem extends vscode.TreeItem {
     public readonly groupName: string,
     public readonly stem: string,
     public readonly children: FolderItem[],
-    active = false
+    active = false,
+    options: { favorites?: boolean } = {}
   ) {
-    super(groupName, vscode.TreeItemCollapsibleState.Collapsed);
+    super(
+      groupName,
+      options.favorites
+        ? vscode.TreeItemCollapsibleState.Expanded
+        : vscode.TreeItemCollapsibleState.Collapsed
+    );
     const archive =
       !active &&
+      !options.favorites &&
       children.length > 0 &&
       children.every((child) => child.archive);
-    this.id = archive ? `group:archive:${stem}` : `group:${stem}`;
-    this.iconPath = archive
-      ? new vscode.ThemeIcon("layers", archiveColor)
-      : activeIcon("layers", active);
-    this.tooltip = active
-      ? `${groupName}\nDossier actif`
+    this.id = options.favorites
+      ? `group:favorites:${stem}`
       : archive
-        ? `${groupName}\nArchive (inactif)`
-        : groupName;
+        ? `group:archive:${stem}`
+        : `group:${stem}`;
+    this.iconPath = options.favorites
+      ? new vscode.ThemeIcon("star-full")
+      : archive
+        ? new vscode.ThemeIcon("layers", archiveColor)
+        : activeIcon("layers", active);
+    this.tooltip = options.favorites
+      ? `${groupName}\nÉpinglés en tête ; aussi dans la liste ci-dessous`
+      : active
+        ? `${groupName}\nDossier actif`
+        : archive
+          ? `${groupName}\nArchive (inactif)`
+          : groupName;
     if (active) {
       this.resourceUri = activeResource(this.id);
       this.accessibilityInformation = {
@@ -388,12 +427,28 @@ export function viewTitle(mode: ViewMode): string {
   return `SSH - Folders${suffix}`;
 }
 
-function toFlatFolderItem(ref: AzFolderRef): FolderItem {
+function toFlatFolderItem(
+  ref: AzFolderRef,
+  options: { idPrefix?: string } = {}
+): FolderItem {
   return new FolderItem(ref.alias, ref.entry, {
     flat: true,
     title: displayFolderName(ref.entry),
     local: ref.local,
+    ...(options.idPrefix ? { idPrefix: options.idPrefix } : {}),
   });
+}
+
+function toFolderEntryFromLocal(entry: {
+  path: string;
+  label?: string;
+  favorite?: boolean;
+}): FolderEntry {
+  return {
+    path: entry.path,
+    ...(entry.label ? { label: entry.label } : {}),
+    ...(entry.favorite === true ? { favorite: true } : {}),
+  };
 }
 
 function listFoldersAlphabetical(): SshFoldersItem[] {
@@ -414,13 +469,26 @@ function listFoldersAlphabetical(): SshFoldersItem[] {
     for (const entry of localFoldersForHost(data, alias)) {
       refs.push({
         alias,
-        entry: { path: entry.path, ...(entry.label ? { label: entry.label } : {}) },
+        entry: toFolderEntryFromLocal(entry),
         local: true,
       });
     }
   }
 
-  return buildAzFolderTree(refs, {
+  const favorites = refs
+    .filter((ref) => isFavoriteFolder(ref.entry))
+    .sort((a, b) => {
+      const byName = compareText(
+        displayFolderName(a.entry),
+        displayFolderName(b.entry)
+      );
+      if (byName !== 0) {
+        return byName;
+      }
+      return compareText(a.alias, b.alias);
+    });
+
+  const normal = buildAzFolderTree(refs, {
     sort: sortAlphabetical(data),
     group: groupSameName(data),
     data,
@@ -428,7 +496,7 @@ function listFoldersAlphabetical(): SshFoldersItem[] {
     if (node.kind === "leaf") {
       return toFlatFolderItem(node.item);
     }
-    const children = node.items.map(toFlatFolderItem);
+    const children = node.items.map((item) => toFlatFolderItem(item));
     return new FolderGroupItem(
       node.name,
       node.stem,
@@ -436,6 +504,19 @@ function listFoldersAlphabetical(): SshFoldersItem[] {
       children.some((child) => child.active)
     );
   });
+
+  if (favorites.length === 0) {
+    return normal;
+  }
+  const favoriteItems = favorites.map((ref) =>
+    toFlatFolderItem(ref, { idPrefix: "fav:" })
+  );
+  return [
+    new FolderGroupItem("Favoris", "favoris", favoriteItems, false, {
+      favorites: true,
+    }),
+    ...normal,
+  ];
 }
 
 function recentTooltip(entry: RecentAccess, detail: string): string {
@@ -511,18 +592,22 @@ function listByHostRoots(hostsReady: boolean): SshFoldersItem[] {
       roots.push(new HostItem(alias, { local: true }));
     }
   }
-  if (sortAlphabetical(data)) {
-    roots.sort((a, b) => {
-      const byName = a.alias.localeCompare(b.alias, "fr", {
-        sensitivity: "base",
-        numeric: true,
-      });
-      if (byName !== 0) {
-        return byName;
-      }
+  roots.sort((a, b) => {
+    if (a.favorite !== b.favorite) {
+      return a.favorite ? -1 : 1;
+    }
+    if (!sortAlphabetical(data)) {
       return Number(a.local) - Number(b.local);
+    }
+    const byName = a.alias.localeCompare(b.alias, "fr", {
+      sensitivity: "base",
+      numeric: true,
     });
-  }
+    if (byName !== 0) {
+      return byName;
+    }
+    return Number(a.local) - Number(b.local);
+  });
   return roots;
 }
 
@@ -575,10 +660,7 @@ export class SshFoldersTreeProvider
         const data = cachedFoldersFile() ?? { folders: {} };
         if (element.local) {
           const folders = localFoldersForHost(data, element.alias).map(
-            (entry) => ({
-              path: entry.path,
-              ...(entry.label ? { label: entry.label } : {}),
-            })
+            (entry) => toFolderEntryFromLocal(entry)
           );
           const ordered = sortFolderEntries(folders, {
             alphabetical: sortAlphabetical(data),

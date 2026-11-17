@@ -8,6 +8,8 @@ import { sameHost } from "./sshConfig";
 export interface FolderEntry {
   label?: string;
   path: string;
+  /** Favori : affiché en tête de liste (et aussi dans la liste normale en vue A-Z). */
+  favorite?: boolean;
 }
 
 /** Dossier local du poste de base, rangé sous un serveur virtuel. */
@@ -15,6 +17,7 @@ export interface LocalFolderEntry {
   VirtualHost: string;
   path: string;
   label?: string;
+  favorite?: boolean;
 }
 
 export const DEFAULT_RECENT_LIMIT = 20;
@@ -31,6 +34,7 @@ export const DEFAULT_SETTINGS = {
   SortAlphabetical: true,
   GroupSameName: true,
   HiddenHosts: [] as string[],
+  FavoriteHosts: [] as string[],
   LastFolder: ["Projects", "_old"] as string[],
   ArchiveParents: ["_old", "old"] as string[],
 } as const;
@@ -71,6 +75,8 @@ export interface FolderDefaults {
   SortAlphabetical?: boolean;
   GroupSameName?: boolean;
   HiddenHosts?: string[];
+  /** Alias Host / VirtualHost épinglés en tête de la vue par hôte. */
+  FavoriteHosts?: string[];
   LastFolder?: string[];
   /** Noms de dossier parent qui marquent une entrée comme archive (grisée, fin de liste). */
   ArchiveParents?: string[];
@@ -416,6 +422,13 @@ function normalizeDefaults(raw: unknown): FolderDefaults | undefined {
   } else {
     delete defaults.HiddenHosts;
   }
+  if (Array.isArray(rec.FavoriteHosts)) {
+    defaults.FavoriteHosts = rec.FavoriteHosts.filter(
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    ).map((item) => item.trim());
+  } else {
+    delete defaults.FavoriteHosts;
+  }
   if (Array.isArray(rec.LastFolder)) {
     defaults.LastFolder = rec.LastFolder.filter(
       (item): item is string => typeof item === "string" && item.trim().length > 0
@@ -525,6 +538,7 @@ export function normalizeFileWithMeta(raw: unknown): {
       folders[host] = list.filter(isFolderEntry).map((entry) => ({
         path: entry.path,
         ...(entry.label ? { label: entry.label } : {}),
+        ...(entry.favorite === true ? { favorite: true } : {}),
       }));
     }
   }
@@ -540,6 +554,7 @@ export function normalizeFileWithMeta(raw: unknown): {
           VirtualHost: item.VirtualHost.trim(),
           path: assertLocalPath(item.path),
           ...(item.label?.trim() ? { label: item.label.trim() } : {}),
+          ...(item.favorite === true ? { favorite: true } : {}),
         });
       } catch {
         // Entrée locale illisible : ignorée.
@@ -764,6 +779,25 @@ export function isHostHidden(
   );
 }
 
+export function favoriteHostNames(data: FoldersFile | undefined): string[] {
+  const list = data?.defaults?.FavoriteHosts;
+  return Array.isArray(list) ? list : [...DEFAULT_SETTINGS.FavoriteHosts];
+}
+
+/** Vrai si l'alias figure dans `defaults.FavoriteHosts` (sans casse). */
+export function isFavoriteHost(
+  alias: string,
+  data: FoldersFile | undefined
+): boolean {
+  return favoriteHostNames(data).some((name) => sameHost(name, alias));
+}
+
+export function isFavoriteFolder(
+  entry: FolderEntry | LocalFolderEntry | undefined
+): boolean {
+  return entry?.favorite === true;
+}
+
 export function visibleHostAliases(
   aliases: readonly string[],
   data: FoldersFile | undefined
@@ -917,6 +951,75 @@ export async function removeLocalFolderEntry(
     delete data.local;
   }
   await writeFoldersFile(data);
+}
+
+/** Bascule `favorite` sur un dossier distant. Retourne le nouvel état. */
+export async function toggleFolderFavorite(
+  host: string,
+  remotePath: string
+): Promise<boolean> {
+  const data = await readFoldersFile();
+  const key = existingHostKey(data, host);
+  const entry = key
+    ? (data.folders[key] ?? []).find((item) => item.path === remotePath)
+    : undefined;
+  if (!key || !entry) {
+    throw new Error("Dossier introuvable dans la configuration.");
+  }
+  const next = entry.favorite !== true;
+  if (next) {
+    entry.favorite = true;
+  } else {
+    delete entry.favorite;
+  }
+  await writeFoldersFile(data);
+  return next;
+}
+
+/** Bascule `favorite` sur un dossier local. Retourne le nouvel état. */
+export async function toggleLocalFolderFavorite(
+  virtualHost: string,
+  localPath: string
+): Promise<boolean> {
+  const data = await readFoldersFile();
+  const entry = data.local?.find(
+    (item) =>
+      sameHost(item.VirtualHost, virtualHost) &&
+      sameLocalPath(item.path, localPath)
+  );
+  if (!entry) {
+    throw new Error("Dossier local introuvable dans la configuration.");
+  }
+  const next = entry.favorite !== true;
+  if (next) {
+    entry.favorite = true;
+  } else {
+    delete entry.favorite;
+  }
+  await writeFoldersFile(data);
+  return next;
+}
+
+/** Bascule un alias dans `defaults.FavoriteHosts`. Retourne le nouvel état. */
+export async function toggleHostFavorite(alias: string): Promise<boolean> {
+  const data = await readFoldersFile();
+  const defaults: FolderDefaults = { ...(data.defaults ?? {}) };
+  const current = Array.isArray(defaults.FavoriteHosts)
+    ? [...defaults.FavoriteHosts]
+    : [];
+  const index = current.findIndex((name) => sameHost(name, alias));
+  let next: boolean;
+  if (index >= 0) {
+    current.splice(index, 1);
+    next = false;
+  } else {
+    current.push(alias);
+    next = true;
+  }
+  defaults.FavoriteHosts = current;
+  data.defaults = defaults;
+  await writeFoldersFile(data);
+  return next;
 }
 
 async function seedFoldersFileFromExample(filePath: string): Promise<void> {

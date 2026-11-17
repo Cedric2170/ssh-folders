@@ -10,6 +10,8 @@ import {
   expandLocalPath,
   invalidateFoldersCache,
   isArchiveFolderPath,
+  isFavoriteFolder,
+  isFavoriteHost,
   isHostHidden,
   listLocalSubdirectories,
   localFoldersForHost,
@@ -118,7 +120,7 @@ describe("suggestedRemoteAddPath", () => {
     );
   });
 
-  it("repli sur DefaultFolder si rien n'est ouvert", () => {
+  it("propose DefaultFolder si rien n'est ouvert", () => {
     assert.strictEqual(
       suggestedRemoteAddPath("/opt/docker/projects", undefined),
       "/opt/docker/projects"
@@ -140,6 +142,50 @@ describe("HiddenHosts", () => {
       visibleHostAliases(["demo-docker", "gitlab-ci", "Legacy"], data),
       ["demo-docker"]
     );
+  });
+});
+
+describe("Favoris", () => {
+  it("détecte FavoriteHosts et favorite sur entrée", () => {
+    const data: FoldersFile = {
+      folders: {
+        demo: [{ path: "/a", favorite: true }, { path: "/b" }],
+      },
+      defaults: { FavoriteHosts: ["Demo"] },
+    };
+    assert.strictEqual(isFavoriteHost("demo", data), true);
+    assert.strictEqual(isFavoriteHost("other", data), false);
+    assert.strictEqual(isFavoriteFolder(data.folders.demo[0]), true);
+    assert.strictEqual(isFavoriteFolder(data.folders.demo[1]), false);
+  });
+
+  it("place les favoris en tête sous l'hôte", () => {
+    const ordered = sortFolderEntries(
+      [
+        { path: "/z", label: "Zulu" },
+        { path: "/a", label: "Alpha", favorite: true },
+        { path: "/m", label: "Mike" },
+      ],
+      { data: { folders: {} } }
+    ).map((entry) => entry.label);
+    assert.deepStrictEqual(ordered, ["Alpha", "Mike", "Zulu"]);
+  });
+
+  it("conserve favorite au normalize", () => {
+    const { data } = normalizeFileWithMeta({
+      folders: {
+        demo: [{ path: "/opt/x", favorite: true }],
+      },
+      local: [
+        {
+          VirtualHost: "Prod",
+          path: "~/Documents",
+          favorite: true,
+        },
+      ],
+    });
+    assert.strictEqual(data.folders.demo[0].favorite, true);
+    assert.strictEqual(localFoldersForHost(data, "Prod")[0].favorite, true);
   });
 });
 

@@ -63,8 +63,10 @@ Le schéma JSON (`./remote-folders.schema.json`) est dans le même dossier :
 Le chemin doit être POSIX et absolu (`/...`). On peut aussi ajouter, renommer
 ou supprimer un dossier depuis le menu de l'arbre.
 
-`defaults.DefaultFolder` s'applique à tous les hôtes : un clic sur l'hôte
-ouvre ce chemin au lieu d'une fenêtre distante vide.
+`defaults.DefaultFolder` est la proposition de base du champ chemin lors de
+l'ajout (`+`) : le chemin est prérempli mais entièrement éditable (aucun
+forçage). Il sert aussi à suggérer le libellé. Un clic sur un hôte n'ouvre
+pas ce chemin (sélecteur de dossier libre).
 
 `defaults.RecentLimit` fixe le nombre d'entrées dans la vue **Derniers accès**
 (20 par défaut, entre 1 et 100). L'historique lui-même n'est pas dans ce JSON :
@@ -82,6 +84,14 @@ dossier séparément.
 derniers accès, et le choix d'hôte du bouton +. Liste vide par défaut.
 Correspondance sans casse ; `*` et `?` acceptés. Exemple :
 `["gitlab*", "github.com"]`.
+
+`defaults.FavoriteHosts` épingle des alias Host / VirtualHost en tête de la
+vue par hôte (icône étoile). Liste vide par défaut. Bascule via le menu
+contextuel ★ sur un hôte.
+
+Sur une entrée de dossier (`folders[]` ou `local[]`), `"favorite": true`
+l'épingle en tête sous l'hôte et dans un groupe **Favoris** en vue A-Z, tout
+en le laissant aussi dans la liste normale. Même bascule via ★.
 
 `defaults.LastFolder` place ces libellés en fin de liste (vue par hôte et
 vue A-Z). Correspondance sans casse avec le `label`. Par défaut :
@@ -108,9 +118,9 @@ Le bouton **+** ouvre d'abord la liste des hôtes SSH :
 
 Ensuite :
 
-- **Chemin POSIX** : prérempli avec le dossier distant déjà ouvert pour cet
-  alias (fenêtre courante ou autre fenêtre Remote-SSH suivie), sinon
-  `defaults.DefaultFolder`. En local, le parcours démarre sur le dossier
+- **Chemin POSIX** : prérempli avec le dossier déjà ouvert pour cet alias s'il
+  existe, sinon `defaults.DefaultFolder` ; le champ reste libre (on peut
+  choisir tout autre chemin). En local, le parcours démarre sur le dossier
   `file://` ouvert s'il y en a un, sinon `~/`.
 - **Nom affiché** : la partie du chemin **après** `DefaultFolder`, sans `/`
   initial. Exemple : `/opt/docker/projects/grafana` donne `grafana`.

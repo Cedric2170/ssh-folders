@@ -88,13 +88,16 @@ Au premier lancement, l'extension crée le fichier et copie le schéma à côté
 
 | Clé | Défaut | Effet |
 | --- | --- | --- |
-| `DefaultFolder` | — | Préremplit le `+` ; clic hôte ouvre ce chemin. |
+| `DefaultFolder` | — | Proposition de base au `+` (éditable librement) et aide au libellé ; pas d’ouverture au clic hôte. |
 | `RecentLimit` | `20` | Taille de la vue derniers accès (1–100). |
 | `SortAlphabetical` | `true` | Tri A-Z des hôtes et dossiers. |
 | `GroupSameName` | `true` | Regroupe les noms proches en vue A-Z. |
 | `HiddenHosts` | `[]` | Masque des alias (`gitlab*`, …). |
+| `FavoriteHosts` | `[]` | Hôtes / VirtualHost en tête de la vue par hôte. |
 | `LastFolder` | `Projects`, `_old` | Libellés placés en fin de liste. |
 | `ArchiveParents` | `_old`, `old` | Parent immédiat → archive (grisé, fin de liste, regroupé à part en A-Z). |
+
+Dossiers : `"favorite": true` sur une entrée (ou menu contextuel ★) — en tête sous l’hôte, groupe **Favoris** en A-Z, et toujours dans la liste normale.
 
 #### 4. Couleur de l'entrée active
 
@@ -173,13 +176,16 @@ On first launch, the extension creates the file and copies the schema next to it
 
 | Key | Default | Effect |
 | --- | --- | --- |
-| `DefaultFolder` | — | Prefills `+`; host click opens this path. |
+| `DefaultFolder` | — | Base suggestion for `+` (freely editable) and label hint; host click does not open it. |
 | `RecentLimit` | `20` | Recent view size (1–100). |
 | `SortAlphabetical` | `true` | A-Z sort for hosts and folders. |
 | `GroupSameName` | `true` | Groups similar names in the A-Z view. |
 | `HiddenHosts` | `[]` | Hides aliases (`gitlab*`, …). |
+| `FavoriteHosts` | `[]` | Hosts / VirtualHosts pinned at the top of the by-host view. |
 | `LastFolder` | `Projects`, `_old` | Labels kept at the end of lists. |
 | `ArchiveParents` | `_old`, `old` | Immediate parent → archive (grayed, end of lists, separate A-Z groups). |
+
+Folders: `"favorite": true` on an entry (or context menu ★) — top under the host, **Favorites** group in A-Z, and still in the normal list.
 
 #### 4. Active entry color
 

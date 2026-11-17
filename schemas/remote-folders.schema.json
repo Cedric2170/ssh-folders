@@ -16,7 +16,7 @@
         "DefaultFolder": {
           "type": "string",
           "pattern": "^/",
-          "description": "Chemin POSIX ouvert par défaut à la connexion d'un hôte (pas de ~)."
+          "description": "Chemin POSIX proposé par défaut à l'ajout d'un dossier via + (préremplissage éditable librement) et pour suggérer le libellé (pas de ~). N'ouvre pas automatiquement au clic sur un hôte."
         },
         "RecentLimit": {
           "type": "integer",
@@ -39,6 +39,15 @@
           "type": "array",
           "default": [],
           "description": "Alias Host SSH à masquer dans l'arbre et le choix d'hôte. Correspondance sans casse. Jokers * et ? acceptés. Exemple : [\"gitlab*\", \"github.com\"].",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "FavoriteHosts": {
+          "type": "array",
+          "default": [],
+          "description": "Alias Host SSH ou VirtualHost épinglés en tête de la vue par hôte (icône étoile). Correspondance sans casse. Liste vide par défaut.",
           "items": {
             "type": "string",
             "minLength": 1
@@ -107,6 +116,11 @@
               "type": "string",
               "pattern": "^/",
               "description": "Chemin POSIX absolu sur l'hôte distant (pas de ~)."
+            },
+            "favorite": {
+              "type": "boolean",
+              "default": false,
+              "description": "Si vrai, le dossier est épinglé en tête sous l'hôte et dans un groupe Favoris en vue A-Z (tout en restant dans la liste normale)."
             }
           }
         }
@@ -134,6 +148,11 @@
           "label": {
             "type": "string",
             "description": "Libellé affiché. Si omis, le nom du dossier est utilisé."
+          },
+          "favorite": {
+            "type": "boolean",
+            "default": false,
+            "description": "Si vrai, le dossier local est épinglé en tête sous le VirtualHost et dans le groupe Favoris en vue A-Z (tout en restant dans la liste normale)."
           }
         }
       }

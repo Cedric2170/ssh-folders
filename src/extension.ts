@@ -15,15 +15,16 @@ import {
   labelFromDefaultFolder,
   listLocalSubdirectories,
   localVirtualHosts,
-  projectsRootForHost,
   readFoldersFile,
-  repairPathUnderProjectsRoot,
   removeFolderEntry,
   removeLocalFolderEntry,
   renameFolderEntry,
   renameLocalFolderEntry,
   sortAlphabetical,
   toTildePath,
+  toggleFolderFavorite,
+  toggleHostFavorite,
+  toggleLocalFolderFavorite,
   visibleHostAliases,
 } from "./foldersConfig";
 import { sortHostAliases } from "./folderDisplay";
@@ -164,11 +165,8 @@ async function openRemoteHost(
   newWindow: boolean
 ): Promise<unknown> {
   const host = await canonicalHostAlias(alias);
-  const data = await readFoldersFile();
-  const folder = defaultFolderPath(data);
-  if (folder) {
-    return openRemoteFolder(host, folder, newWindow);
-  }
+  // Pas de DefaultFolder ici : laisse le sélecteur de dossier libre
+  // (évite un chemin type /opt/docker/... imposé sur un nouvel hôte).
   await recordAccess({ kind: "host", alias: host });
   return vscode.commands.executeCommand("vscode.newWindow", {
     remoteAuthority: sshRemoteAuthority(host),
@@ -672,28 +670,20 @@ async function activateOnce(
 
     const data = await readFoldersFile();
     const defaultFolder = defaultFolderPath(data);
-    const projectsRoot = projectsRootForHost(alias, data.folders, defaultFolder);
     const prefillPath = suggestedRemoteAddPath(
       defaultFolder,
       activeRemotePathForHost(alias) ?? openRemotePathForHost(alias)
     );
     const remotePath = await vscode.window.showInputBox({
       title: `Ajouter un dossier — ${alias}`,
-      prompt: "Chemin POSIX absolu sur l'hôte distant",
+      prompt: "Chemin POSIX absolu sur l'hôte distant (modifiable librement)",
       placeHolder: defaultFolder ?? "/home/utilisateur/projet",
       value: prefillPath,
-      valueSelection: prefillPath
-        ? [prefillPath.length, prefillPath.length]
-        : undefined,
+      // Sélectionne toute la proposition pour la remplacer facilement.
+      valueSelection: prefillPath ? [0, prefillPath.length] : undefined,
       validateInput: (value) => {
         try {
-          const pathValue = assertRemotePath(value);
-          if (projectsRoot) {
-            const fixed = repairPathUnderProjectsRoot(pathValue, projectsRoot);
-            if (fixed !== pathValue) {
-              return `Le chemin semble manquer « ${path.posix.basename(projectsRoot.replace(/\/+$/, ""))} ». Utilisez plutôt : ${fixed}`;
-            }
-          }
+          assertRemotePath(value);
           return undefined;
         } catch (error) {
           return (error as Error).message;
@@ -829,6 +819,37 @@ async function activateOnce(
     vscode.commands.registerCommand("sshFolders.addFolder", addFolder),
     vscode.commands.registerCommand("sshFolders.renameFolder", renameFolder),
     vscode.commands.registerCommand("sshFolders.removeFolder", removeFolder),
+    vscode.commands.registerCommand(
+      "sshFolders.toggleFavorite",
+      async (item?: unknown) => {
+        try {
+          if (item instanceof HostItem) {
+            const next = await toggleHostFavorite(item.alias);
+            refresh();
+            void vscode.window.showInformationMessage(
+              next
+                ? `« ${item.alias} » ajouté aux favoris.`
+                : `« ${item.alias} » retiré des favoris.`
+            );
+            return;
+          }
+          if (item instanceof FolderItem) {
+            const next = item.local
+              ? await toggleLocalFolderFavorite(item.alias, item.path)
+              : await toggleFolderFavorite(item.alias, item.path);
+            refresh();
+            const name = item.label?.toString() ?? item.path;
+            void vscode.window.showInformationMessage(
+              next
+                ? `« ${name} » ajouté aux favoris.`
+                : `« ${name} » retiré des favoris.`
+            );
+          }
+        } catch (error) {
+          void vscode.window.showErrorMessage((error as Error).message);
+        }
+      }
+    ),
     vscode.commands.registerCommand(
       "sshFolders.removeRecent",
       async (item?: unknown) => {
