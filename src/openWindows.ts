@@ -28,6 +28,20 @@ export function isFolderInOpenWindow(alias: string, folderPath: string): boolean
   );
 }
 
+/**
+ * Chemin distant ouvert pour cet alias (fenêtre suivie), du plus récent au plus ancien.
+ * Sans chemin de dossier (hôte seul), retourne undefined.
+ */
+export function openRemotePathForHost(alias: string): string | undefined {
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const item = sessions[i];
+    if (item.path !== undefined && sameHost(item.host, alias)) {
+      return item.path;
+    }
+  }
+  return undefined;
+}
+
 function storageFile(context: vscode.ExtensionContext): string {
   return path.join(context.globalStorageUri.fsPath, "..", "storage.json");
 }

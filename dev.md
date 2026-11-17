@@ -108,7 +108,10 @@ Le bouton **+** ouvre d'abord la liste des hôtes SSH :
 
 Ensuite :
 
-- **Chemin POSIX** : prérempli avec `defaults.DefaultFolder`.
+- **Chemin POSIX** : prérempli avec le dossier distant déjà ouvert pour cet
+  alias (fenêtre courante ou autre fenêtre Remote-SSH suivie), sinon
+  `defaults.DefaultFolder`. En local, le parcours démarre sur le dossier
+  `file://` ouvert s'il y en a un, sinon `~/`.
 - **Nom affiché** : la partie du chemin **après** `DefaultFolder`, sans `/`
   initial. Exemple : `/opt/docker/projects/grafana` donne `grafana`.
 

@@ -28,6 +28,7 @@ import {
 } from "./foldersConfig";
 import { sortHostAliases } from "./folderDisplay";
 import {
+  activeRemotePathForHost,
   canonicalHostAlias,
   currentSshHost,
   getSshConfigPath,
@@ -37,6 +38,7 @@ import {
   reloadHostAliases,
   sameHost,
   sshRemoteAuthority,
+  suggestedRemoteAddPath,
 } from "./sshConfig";
 import {
   ActiveItemDecorationProvider,
@@ -51,9 +53,20 @@ import {
   type OpenTarget,
   type ViewMode,
 } from "./treeProvider";
-import { watchOpenWindows } from "./openWindows";
+import { openRemotePathForHost, watchOpenWindows } from "./openWindows";
 import { initRecentAccess, recordAccess, removeAccess } from "./recentAccess";
 import { initDevMode, isDevMode, prepareDevSandbox } from "./devMode";
+
+/** Dossier local ouvert dans la fenêtre courante, en chemin `~/...` si possible. */
+function currentOpenLocalFolderPath(): string | undefined {
+  const folder = (vscode.workspace.workspaceFolders ?? []).find(
+    (item) => item.uri.scheme === "file"
+  );
+  if (!folder) {
+    return undefined;
+  }
+  return toTildePath(folder.uri.fsPath);
+}
 
 function isOpenTarget(value: unknown): value is OpenTarget {
   if (!value || typeof value !== "object") {
@@ -256,7 +269,7 @@ async function pickLocalFolderPath(
   picker.ignoreFocusOut = true;
   picker.matchOnDescription = true;
 
-  let current = "~";
+  let current = currentOpenLocalFolderPath() ?? "~";
 
   const refresh = async (): Promise<void> => {
     picker.busy = true;
@@ -660,13 +673,17 @@ async function activateOnce(
     const data = await readFoldersFile();
     const defaultFolder = defaultFolderPath(data);
     const projectsRoot = projectsRootForHost(alias, data.folders, defaultFolder);
+    const prefillPath = suggestedRemoteAddPath(
+      defaultFolder,
+      activeRemotePathForHost(alias) ?? openRemotePathForHost(alias)
+    );
     const remotePath = await vscode.window.showInputBox({
       title: `Ajouter un dossier — ${alias}`,
       prompt: "Chemin POSIX absolu sur l'hôte distant",
       placeHolder: defaultFolder ?? "/home/utilisateur/projet",
-      value: defaultFolder ?? "",
-      valueSelection: defaultFolder
-        ? [defaultFolder.length, defaultFolder.length]
+      value: prefillPath,
+      valueSelection: prefillPath
+        ? [prefillPath.length, prefillPath.length]
         : undefined,
       validateInput: (value) => {
         try {

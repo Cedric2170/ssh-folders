@@ -22,6 +22,7 @@ import {
   visibleHostAliases,
   type FoldersFile,
 } from "../foldersConfig";
+import { suggestedRemoteAddPath } from "../sshConfig";
 import {
   buildAzFolderTree,
   sortFolderEntries,
@@ -103,6 +104,26 @@ describe("local[] / VirtualHost", () => {
     };
     assert.deepStrictEqual(localVirtualHosts(data), ["Prod", "Dev"]);
     assert.strictEqual(localFoldersForHost(data, "PROD").length, 2);
+  });
+});
+
+describe("suggestedRemoteAddPath", () => {
+  it("préfère le dossier ouvert à DefaultFolder", () => {
+    assert.strictEqual(
+      suggestedRemoteAddPath(
+        "/opt/docker/projects",
+        "/opt/docker/projects/grafana/"
+      ),
+      "/opt/docker/projects/grafana"
+    );
+  });
+
+  it("repli sur DefaultFolder si rien n'est ouvert", () => {
+    assert.strictEqual(
+      suggestedRemoteAddPath("/opt/docker/projects", undefined),
+      "/opt/docker/projects"
+    );
+    assert.strictEqual(suggestedRemoteAddPath(undefined, undefined), "");
   });
 });
 

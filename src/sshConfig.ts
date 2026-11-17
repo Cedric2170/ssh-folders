@@ -138,6 +138,27 @@ export function isActiveRemoteFolder(alias: string, folderPath: string): boolean
   );
 }
 
+/** Chemin du dossier distant ouvert pour cet alias dans la fenêtre courante. */
+export function activeRemotePathForHost(alias: string): string | undefined {
+  return activeRemoteFolders().find((item) => sameHost(item.host, alias))?.path;
+}
+
+/**
+ * Chemin proposé à l'ajout d'un favori distant : dossier ouvert s'il existe,
+ * sinon `DefaultFolder`. `openPath` = fenêtre courante ou autre fenêtre suivie.
+ */
+export function suggestedRemoteAddPath(
+  defaultFolder: string | undefined,
+  openPath: string | undefined
+): string {
+  const open = openPath?.trim() ?? "";
+  if (open) {
+    return normalizeRemotePath(open);
+  }
+  const fallback = defaultFolder?.trim() ?? "";
+  return fallback ? normalizeRemotePath(fallback) : "";
+}
+
 function globToRegExp(pattern: string): RegExp {
   const escaped = pattern
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")
