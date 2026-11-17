@@ -23,6 +23,8 @@ Dernière version uniquement. Historique complet : onglet **Changelog** du Marke
 
 ## Français
 
+Interface disponible en anglais, français, allemand, espagnol et italien (selon la langue d’affichage de l’éditeur).
+
 ### Aperçu
 
 Fichier d'exemple : `examples/ssh-folders.example.json` (`demo-docker` / `demo-web` = SSH fictifs ; `Prod` / `Dev` = locaux).
@@ -110,6 +112,8 @@ Pas dans le JSON. Settings de l'éditeur :
 ~~~
 
 ## English
+
+UI available in English, French, German, Spanish, and Italian (follows the editor display language).
 
 ### Overview
 
