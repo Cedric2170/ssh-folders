@@ -290,6 +290,7 @@
     "dev:host:exemples:reset": "npm run compile && printf 'sandbox\\n' > .vscode/ssh-folders-dev.mode && SSH_FOLDERS_DEV_RESET=1 cursor --extensionDevelopmentPath=\"$PWD\"",
     "watch": "tsc -watch -p ./",
     "package": "mkdir -p vsix && node scripts/vsix-readme.js && vsce package -o vsix",
+    "release:main": "bash scripts/release-main.sh",
     "publish:vscode": "npm run package && vsce publish -i vsix/ssh-folders-$(node -p \"require('./package.json').version\").vsix",
     "publish:openvsx": "npx ovsx publish vsix/ssh-folders-$(node -p \"require('./package.json').version\").vsix"
   },

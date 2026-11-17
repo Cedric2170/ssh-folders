@@ -129,7 +129,26 @@ La connexion Remote-SSH utilise l'alias tel qu'il est écrit dans le fichier SSH
 Comptes et jetons se créent dans le navigateur. L'identifiant public est
 `cedric217` des deux côtés : éditeur Marketplace et namespace Open VSX.
 Le compte Eclipse `Cedric2170` possède ce namespace, il n'en est pas le nom.
-Ne pas écrire les jetons dans le dépôt. Depuis ce dossier :
+Ne pas écrire les jetons dans le dépôt.
+
+### Release sur `main` (un seul commit)
+
+Travailler et committer le détail sur **`dev`**. Quand la version `x.y.z` est prête
+(`package.json`, `CHANGELOG.md`, What's New) :
+
+~~~bash
+npm run release:main
+# optionnel :
+npm run release:main -- --tag
+npm run release:main -- --publish
+~~~
+
+Cela squash `dev` → `main` avec le message `vX.Y.Z`, pousse `main`, et revient
+sur `dev`. Skill Cursor : `release-main`.
+
+### Marketplace / Open VSX
+
+Depuis ce dossier (après release, ou avec `--publish`) :
 
 ~~~bash
 npm run package
