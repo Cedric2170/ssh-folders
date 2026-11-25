@@ -5,6 +5,47 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["folders"],
+  "$defs": {
+    "iconPaletteColor": {
+      "type": "string",
+      "enum": [
+        "green",
+        "vert",
+        "blue",
+        "bleu",
+        "orange",
+        "red",
+        "rouge",
+        "purple",
+        "violet",
+        "yellow",
+        "jaune",
+        "cyan",
+        "teal",
+        "turquoise",
+        "magenta",
+        "pink",
+        "rose",
+        "brown",
+        "marron",
+        "grey",
+        "gray",
+        "gris",
+        "lime",
+        "citron",
+        "indigo",
+        "gold",
+        "or",
+        "coral",
+        "corail",
+        "olive",
+        "navy",
+        "marine",
+        "amber",
+        "ambre"
+      ]
+    }
+  },
   "properties": {
     "$schema": {
       "type": "string"
@@ -14,9 +55,17 @@
       "description": "Paramètres globaux, valables pour tous les hôtes. On peut y ajouter des clés plus tard.",
       "properties": {
         "DefaultFolder": {
-          "type": "string",
-          "pattern": "^/",
-          "description": "Chemin POSIX proposé par défaut à l'ajout d'un dossier via + (préremplissage éditable librement) et pour suggérer le libellé (pas de ~). N'ouvre pas automatiquement au clic sur un hôte."
+          "description": "Chemin POSIX proposé par défaut à l'ajout d'un dossier via + (préremplissage éditable librement) et pour suggérer le libellé (pas de ~). Chaîne vide = non défini (ignoré). N'ouvre pas automatiquement au clic sur un hôte.",
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 0
+            },
+            {
+              "type": "string",
+              "pattern": "^/"
+            }
+          ]
         },
         "RecentLimit": {
           "type": "integer",
@@ -71,6 +120,12 @@
             "minLength": 1
           }
         },
+        "VirtualHostPosition": {
+          "type": "string",
+          "enum": ["alphabet", "top", "bottom"],
+          "default": "alphabet",
+          "description": "Position des VirtualHost (local[]) dans la vue par hôte. alphabet = mélangés aux hôtes SSH (tri A-Z si SortAlphabetical). top = VirtualHost au-dessus des hôtes SSH. bottom = VirtualHost en dessous. Les favoris restent en tête dans tous les cas."
+        },
         "ActiveColor": {
           "description": "Valeur historique conservée dans le JSON. La couleur affichée vient de la couleur de thème sshFolders.activeForeground (Settings → workbench.colorCustomizations), pas de ce champ.",
           "default": "green",
@@ -95,6 +150,52 @@
               "pattern": "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$"
             }
           ]
+        },
+        "HostIconColors": {
+          "type": "object",
+          "description": "Couleur d'icône par alias Host SSH ou VirtualHost.",
+          "additionalProperties": {
+            "$ref": "#/$defs/iconPaletteColor"
+          },
+          "default": {}
+        },
+        "IconColorFilters": {
+          "type": "array",
+          "description": "Filtres de couleur d'icône (ordre = priorité, premier match).",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["scope", "color"],
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": ["host", "folder"]
+              },
+              "color": {
+                "$ref": "#/$defs/iconPaletteColor"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Motif sur l'alias (hôte ou parent du dossier). Jokers * et ?."
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Motif sur le chemin (dossiers, scope folder). Jokers * et ?."
+              },
+              "favorite": {
+                "type": "boolean",
+                "const": true
+              },
+              "archive": {
+                "type": "boolean",
+                "const": true,
+                "description": "Dossier archive (ArchiveParents) ; scope folder uniquement."
+              }
+            }
+          }
         }
       }
     },
@@ -121,6 +222,10 @@
               "type": "boolean",
               "default": false,
               "description": "Si vrai, le dossier est épinglé en tête sous l'hôte et dans un groupe Favoris en vue A-Z (tout en restant dans la liste normale)."
+            },
+            "color": {
+              "$ref": "#/$defs/iconPaletteColor",
+              "description": "Couleur d'icône (palette)."
             }
           }
         }
@@ -153,6 +258,10 @@
             "type": "boolean",
             "default": false,
             "description": "Si vrai, le dossier local est épinglé en tête sous le VirtualHost et dans le groupe Favoris en vue A-Z (tout en restant dans la liste normale)."
+          },
+          "color": {
+            "$ref": "#/$defs/iconPaletteColor",
+            "description": "Couleur d'icône (palette)."
           }
         }
       }

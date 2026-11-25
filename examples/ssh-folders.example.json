@@ -9,7 +9,15 @@
     "HiddenHosts": [],
     "FavoriteHosts": ["demo-docker"],
     "LastFolder": ["Projects", "_old"],
-    "ArchiveParents": ["_old", "old"]
+    "ArchiveParents": ["_old", "old"],
+    "VirtualHostPosition": "alphabet",
+    "HostIconColors": {
+      "demo-docker": "purple"
+    },
+    "IconColorFilters": [
+      { "scope": "folder", "archive": true, "color": "grey" },
+      { "scope": "folder", "favorite": true, "color": "yellow" }
+    ]
   },
   "local": [
     {

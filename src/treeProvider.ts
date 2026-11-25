@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import {
   cachedFoldersFile,
+  compareHostRoots,
   expandLocalPath,
   findFolderEntry,
   findLocalFolderEntry,
@@ -38,6 +39,12 @@ import {
 } from "./sshConfig";
 import { isFolderInOpenWindow, isHostInOpenWindow } from "./openWindows";
 import { isDevMode } from "./devMode";
+import {
+  resolveFolderIconPalette,
+  resolveHostIconPalette,
+  themeColorForPalette,
+} from "./iconColors";
+import type { IconPaletteName } from "./foldersConfig";
 
 const ACTIVE_SCHEME = "ssh-folders-active";
 const ARCHIVE_SCHEME = "ssh-folders-archive";
@@ -84,21 +91,22 @@ function folderIsActive(
   );
 }
 
-function activeIcon(iconId: string, active: boolean): vscode.ThemeIcon {
-  return new vscode.ThemeIcon(iconId, active ? activeColor : undefined);
-}
-
-function folderIcon(
-  active: boolean,
-  archive: boolean,
-  favorite: boolean
+function treeItemIcon(
+  iconId: string,
+  options: {
+    active: boolean;
+    archive: boolean;
+    palette?: IconPaletteName;
+  }
 ): vscode.ThemeIcon {
-  const iconId = favorite ? "star-full" : "symbol-folder";
-  if (active) {
+  if (options.active) {
     return new vscode.ThemeIcon(iconId, activeColor);
   }
-  if (archive) {
+  if (options.archive) {
     return new vscode.ThemeIcon(iconId, archiveColor);
+  }
+  if (options.palette) {
+    return new vscode.ThemeIcon(iconId, themeColorForPalette(options.palette));
   }
   return new vscode.ThemeIcon(iconId);
 }
@@ -176,13 +184,15 @@ export class HostItem extends vscode.TreeItem {
       this.contextValue = options.recent ? "recentHost" : "host";
       this.id = options.recent ? `recent:host:${alias}` : `host:${alias}`;
     }
+    const data = cachedFoldersFile();
     const active = hostIsActive(alias, this.local);
     const baseIcon = this.local
       ? "device-desktop"
       : this.favorite
         ? "star-full"
         : "server";
-    this.iconPath = activeIcon(baseIcon, active);
+    const palette = active ? undefined : resolveHostIconPalette(alias, data);
+    this.iconPath = treeItemIcon(baseIcon, { active, archive: false, palette });
     this.tooltip =
       options.tooltip ??
       (this.local ? vscode.l10n.t("{0} (local)", alias) : alias);
@@ -275,7 +285,16 @@ export class FolderItem extends vscode.TreeItem {
       isArchiveFolderPath(entry.path, cachedFoldersFile());
     // Même icône local/distant : le glyphe `folder` décale le libellé (fausse indentation).
     // La distinction reste dans la description (`· local`) et l'icône du VirtualHost.
-    this.iconPath = folderIcon(this.active, this.archive, this.favorite);
+    const iconId = this.favorite ? "star-full" : "symbol-folder";
+    const palette =
+      this.active || this.archive
+        ? undefined
+        : resolveFolderIconPalette(alias, entry, cachedFoldersFile());
+    this.iconPath = treeItemIcon(iconId, {
+      active: this.active,
+      archive: this.archive,
+      palette,
+    });
     this.command = {
       command: "sshFolders.openInNewWindow",
       title: vscode.l10n.t("Open in new window"),
@@ -362,7 +381,7 @@ export class FolderGroupItem extends vscode.TreeItem {
       ? new vscode.ThemeIcon("star-full")
       : archive
         ? new vscode.ThemeIcon("layers", archiveColor)
-        : activeIcon("layers", active);
+        : treeItemIcon("layers", { active, archive, palette: undefined });
     this.tooltip = options.favorites
       ? vscode.l10n.t(
           "{0}\nPinned at the top; also shown in the list below",
@@ -614,22 +633,7 @@ function listByHostRoots(hostsReady: boolean): SshFoldersItem[] {
       roots.push(new HostItem(alias, { local: true }));
     }
   }
-  roots.sort((a, b) => {
-    if (a.favorite !== b.favorite) {
-      return a.favorite ? -1 : 1;
-    }
-    if (!sortAlphabetical(data)) {
-      return Number(a.local) - Number(b.local);
-    }
-    const byName = a.alias.localeCompare(b.alias, "fr", {
-      sensitivity: "base",
-      numeric: true,
-    });
-    if (byName !== 0) {
-      return byName;
-    }
-    return Number(a.local) - Number(b.local);
-  });
+  roots.sort((a, b) => compareHostRoots(a, b, data));
   return roots;
 }
 
