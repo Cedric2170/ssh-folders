@@ -9,10 +9,10 @@ ne pas monter version dans package.json ni lancer publish:* / release:main sans 
 release Marketplace : travailler sur `dev` ; `npm run release:main` squash vers `main` en un commit `vX.Y.Z` (skill `release-main`) ; détail reste sur `dev` ;
 `todo.md` (local, gitignore) : ne garder que le fait depuis le dernier commit `main` et le reste à faire, en conservant les titres de section ; après `release:main`, retirer les `[x]` livrés (skill `release-main`) ;
 README.md est la page publique (Details + What's New) ; CHANGELOG.md = versions publiées `x.y.z` seulement (onglet Changelog) ; builds locaux `x.y.z-1` détaillés dans `vsix/README.md` uniquement ; dev.md reste local ;
+docs publics (concis, sans redondance avec README) : `docs/configuration.{fr,en}.md`, `docs/icon-colors.{fr,en}.md` — liens README ; les mettre à jour en même temps que schéma, `DEFAULT_SETTINGS`, exemples ou comportement réel (retirer les mentions « à venir » une fois livré) ;
 ne pas committer de jetons (OVSX_PAT, .env) ;
 LF, UTF-8, indentation 2 espaces, comme .editorconfig ;
-toute clé de ssh-folders.json qui a une valeur par défaut est déclarée dans le catalogue `DEFAULT_SETTINGS` de src/foldersConfig.ts, dans le schéma et dans l'exemple ;
-au chargement, chaque clé absente est ajoutée avec cette valeur, sans écraser une clé déjà présente ;
-ne pas inventer de valeur pour une clé sans défaut sûr (DefaultFolder) ;
+toute clé configurable de ssh-folders.json est déclarée dans le catalogue `DEFAULT_SETTINGS` de src/foldersConfig.ts, dans le schéma et dans l'exemple ;
+au chargement / écriture, chaque clé absente est ajoutée (sans écraser l'existant) pour documenter les possibilités : `defaults` complets (`DefaultFolder: ""` si non défini) ; si la clé `local` est absente du fichier, seed `{ VirtualHost: "local", path: "~/Documents", label: "Documents" }` ; si `local: []` est déjà présent, on ne re-sème pas ; les valeurs vides sont ignorées à l'exécution ;
 dossiers locaux du poste de base : tableau `local[]` avec `VirtualHost` (groupe affiché comme un hôte), `path` (absolu ou `~/...`), `label` optionnel ; dossiers uniquement (pas de fichiers pour l'instant) ; ouverture via `vscode.Uri.file` ;
 maintenir AGENTS.md à jour dès qu’une convention, un flux de travail ou une règle du projet change.

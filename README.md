@@ -51,6 +51,8 @@ Icônes : **server** = hôte SSH · **device-desktop** = VirtualHost local · **
 
 ### Configuration
 
+Documentation : [config (fr)](docs/configuration.fr.md) · [config (en)](docs/configuration.en.md) · [couleurs (fr)](docs/icon-colors.fr.md) · [colors (en)](docs/icon-colors.en.md)
+
 #### 1. Ouvrir le JSON
 
 Bouton `{}` en haut de la vue, ou commande *Ouvrir la config des dossiers*.
@@ -90,7 +92,8 @@ Au premier lancement, l'extension crée le fichier et copie le schéma à côté
 
 | Clé | Défaut | Effet |
 | --- | --- | --- |
-| `DefaultFolder` | — | Proposition de base au `+` (éditable librement) et aide au libellé ; pas d’ouverture au clic hôte. |
+| `DefaultFolder` | `""` | Proposition de base au `+` (éditable librement) et aide au libellé ; vide = non défini ; pas d’ouverture au clic hôte. |
+| `local` | `[]` | Dossiers locaux (`VirtualHost`) ; tableau vide si inutilisé (toujours présent pour documenter l’option). |
 | `RecentLimit` | `20` | Taille de la vue derniers accès (1–100). |
 | `SortAlphabetical` | `true` | Tri A-Z des hôtes et dossiers. |
 | `GroupSameName` | `true` | Regroupe les noms proches en vue A-Z. |
@@ -98,6 +101,7 @@ Au premier lancement, l'extension crée le fichier et copie le schéma à côté
 | `FavoriteHosts` | `[]` | Hôtes / VirtualHost en tête de la vue par hôte. |
 | `LastFolder` | `Projects`, `_old` | Libellés placés en fin de liste. |
 | `ArchiveParents` | `_old`, `old` | Parent immédiat → archive (grisé, fin de liste, regroupé à part en A-Z). |
+| `VirtualHostPosition` | `alphabet` | Place des VirtualHost dans la vue par hôte : `alphabet` (mélangés), `top`, `bottom`. Favoris toujours en tête. |
 
 Dossiers : `"favorite": true` sur une entrée (ou menu contextuel ★) — en tête sous l’hôte, groupe **Favoris** en A-Z, et toujours dans la liste normale.
 
@@ -141,6 +145,8 @@ Icons: **server** = SSH host · **device-desktop** = local VirtualHost · **symb
 
 ### Configuration
 
+Docs : [config (fr)](docs/configuration.fr.md) · [config (en)](docs/configuration.en.md) · [couleurs (fr)](docs/icon-colors.fr.md) · [colors (en)](docs/icon-colors.en.md)
+
 #### 1. Open the JSON
 
 Use the `{}` button at the top of the view, or the *Open folders config* command.
@@ -180,7 +186,8 @@ On first launch, the extension creates the file and copies the schema next to it
 
 | Key | Default | Effect |
 | --- | --- | --- |
-| `DefaultFolder` | — | Base suggestion for `+` (freely editable) and label hint; host click does not open it. |
+| `DefaultFolder` | `""` | Base suggestion for `+` (freely editable) and label hint; empty = unset; host click does not open it. |
+| `local` | `[]` | Local folders (`VirtualHost`); empty array if unused (always present to document the option). |
 | `RecentLimit` | `20` | Recent view size (1–100). |
 | `SortAlphabetical` | `true` | A-Z sort for hosts and folders. |
 | `GroupSameName` | `true` | Groups similar names in the A-Z view. |
@@ -188,6 +195,7 @@ On first launch, the extension creates the file and copies the schema next to it
 | `FavoriteHosts` | `[]` | Hosts / VirtualHosts pinned at the top of the by-host view. |
 | `LastFolder` | `Projects`, `_old` | Labels kept at the end of lists. |
 | `ArchiveParents` | `_old`, `old` | Immediate parent → archive (grayed, end of lists, separate A-Z groups). |
+| `VirtualHostPosition` | `alphabet` | VirtualHost placement in by-host view: `alphabet` (mixed), `top`, `bottom`. Favorites always first. |
 
 Folders: `"favorite": true` on an entry (or context menu ★) — top under the host, **Favorites** group in A-Z, and still in the normal list.
 
