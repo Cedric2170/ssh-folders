@@ -64,5 +64,14 @@
   "yesterday": "ayer",
   "{0} d ago": "hace {0} d",
   "Loading…": "Cargando…",
-  "{0}, active folder": "{0}, carpeta activa"
+  "{0}, active folder": "{0}, carpeta activa",
+  "SSH client not found. Install OpenSSH to create remote folders.": "Cliente SSH no encontrado. Instale OpenSSH para crear carpetas remotas.",
+  "Cannot create the filesystem root.": "No se puede crear la raíz del sistema de archivos.",
+  "Parent folder does not exist on the host: {0}. Create only the project folder, not the full tree.": "La carpeta padre no existe en el host: {0}. Cree solo la carpeta del proyecto, no todo el árbol.",
+  "Could not create folder {0} on {1}.": "No se pudo crear la carpeta {0} en {1}.",
+  "Parent folder does not exist: {0}. Create only the project folder, not the full tree.": "La carpeta padre no existe: {0}. Cree solo la carpeta del proyecto, no todo el árbol.",
+  "Could not create folder {0}: {1}": "No se pudo crear la carpeta {0}: {1}",
+  "Create": "Crear",
+  "Folder \"{0}\" does not exist on {1}. Create this project folder only (parent must already exist)?": "La carpeta \"{0}\" no existe en {1}. ¿Crear solo esta carpeta de proyecto (el padre debe existir ya)?",
+  "Folder \"{0}\" created on {1}.": "Carpeta \"{0}\" creada en {1}."
 }

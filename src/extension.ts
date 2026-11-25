@@ -10,6 +10,7 @@ import {
   ensureFoldersFile,
   expandLocalPath,
   folderLabel,
+  foldersForHost,
   getFoldersConfigPath,
   invalidateFoldersCache,
   labelFromDefaultFolder,
@@ -57,6 +58,7 @@ import {
 import { openRemotePathForHost, watchOpenWindows } from "./openWindows";
 import { initRecentAccess, recordAccess, removeAccess } from "./recentAccess";
 import { initDevMode, isDevMode, prepareDevSandbox } from "./devMode";
+import { confirmAndCreateProjectFolder } from "./projectFolder";
 
 /** Dossier local ouvert dans la fenêtre courante, en chemin `~/...` si possible. */
 function currentOpenLocalFolderPath(): string | undefined {
@@ -337,12 +339,23 @@ async function pickLocalFolderPath(
           try {
             const normalized = assertLocalPath(typed);
             const abs = expandLocalPath(normalized);
-            const stat = await fs.stat(abs);
-            if (!stat.isDirectory()) {
-              void vscode.window.showWarningMessage(
-                vscode.l10n.t("This path is not a folder.")
-              );
-              return;
+            try {
+              const stat = await fs.stat(abs);
+              if (!stat.isDirectory()) {
+                void vscode.window.showWarningMessage(
+                  vscode.l10n.t("This path is not a folder.")
+                );
+                return;
+              }
+            } catch (error) {
+              const err = error as NodeJS.ErrnoException;
+              if (err.code !== "ENOENT") {
+                void vscode.window.showWarningMessage(
+                  err.message || String(error)
+                );
+                return;
+              }
+              // Absent : création feuille proposée plus bas (confirmAndCreateProjectFolder).
             }
             finish(toTildePath(normalized));
           } catch (error) {
@@ -661,6 +674,14 @@ async function activateOnce(
         return;
       }
       const folderPath = assertLocalPath(localPath);
+      const created = await confirmAndCreateProjectFolder({
+        alias,
+        folderPath,
+        local: true,
+      });
+      if (!created) {
+        return;
+      }
       const suggestedLabel = folderLabel({ path: folderPath });
       const label = await vscode.window.showInputBox({
         title: vscode.l10n.t("Label — {0}", alias),
@@ -686,16 +707,21 @@ async function activateOnce(
 
     const data = await readFoldersFile();
     const defaultFolder = defaultFolderPath(data);
+    const openPath =
+      activeRemotePathForHost(alias) ?? openRemotePathForHost(alias);
+    const knownPaths = foldersForHost(data, alias).map((entry) => entry.path);
     const prefillPath = suggestedRemoteAddPath(
       defaultFolder,
-      activeRemotePathForHost(alias) ?? openRemotePathForHost(alias)
+      openPath,
+      knownPaths
     );
     const remotePath = await vscode.window.showInputBox({
       title: vscode.l10n.t("Add a folder — {0}", alias),
       prompt: vscode.l10n.t(
         "Absolute POSIX path on the remote host (freely editable)"
       ),
-      placeHolder: defaultFolder ?? "/home/utilisateur/projet",
+      placeHolder:
+        prefillPath || defaultFolder || "/home/utilisateur/projet",
       value: prefillPath,
       // Sélectionne toute la proposition pour la remplacer facilement.
       valueSelection: prefillPath ? [0, prefillPath.length] : undefined,
@@ -713,6 +739,14 @@ async function activateOnce(
     }
 
     const folderPath = assertRemotePath(remotePath);
+    const created = await confirmAndCreateProjectFolder({
+      alias,
+      folderPath,
+      local: false,
+    });
+    if (!created) {
+      return;
+    }
     const suggestedLabel = labelFromDefaultFolder(folderPath, defaultFolder);
     const label = await vscode.window.showInputBox({
       title: vscode.l10n.t("Label — {0}", alias),

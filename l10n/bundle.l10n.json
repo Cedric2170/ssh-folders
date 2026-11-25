@@ -64,5 +64,14 @@
   "yesterday": "yesterday",
   "{0} d ago": "{0} d ago",
   "Loading…": "Loading…",
-  "{0}, active folder": "{0}, active folder"
+  "{0}, active folder": "{0}, active folder",
+  "SSH client not found. Install OpenSSH to create remote folders.": "SSH client not found. Install OpenSSH to create remote folders.",
+  "Cannot create the filesystem root.": "Cannot create the filesystem root.",
+  "Parent folder does not exist on the host: {0}. Create only the project folder, not the full tree.": "Parent folder does not exist on the host: {0}. Create only the project folder, not the full tree.",
+  "Could not create folder {0} on {1}.": "Could not create folder {0} on {1}.",
+  "Parent folder does not exist: {0}. Create only the project folder, not the full tree.": "Parent folder does not exist: {0}. Create only the project folder, not the full tree.",
+  "Could not create folder {0}: {1}": "Could not create folder {0}: {1}",
+  "Create": "Create",
+  "Folder \"{0}\" does not exist on {1}. Create this project folder only (parent must already exist)?": "Folder \"{0}\" does not exist on {1}. Create this project folder only (parent must already exist)?",
+  "Folder \"{0}\" created on {1}.": "Folder \"{0}\" created on {1}."
 }
