@@ -6,7 +6,13 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import * as vscode from "vscode";
 import {
   addLocalFolderEntry,
+  applyMissingDefaults,
   assertLocalPath,
+  compareHostRoots,
+  DEFAULT_LOCAL_SEED,
+  DEFAULT_SETTINGS,
+  defaultFolderPath,
+  virtualHostPosition,
   expandLocalPath,
   invalidateFoldersCache,
   isArchiveFolderPath,
@@ -22,13 +28,25 @@ import {
   removeLocalFolderEntry,
   toTildePath,
   visibleHostAliases,
+  writeFoldersFile,
+  ICON_PALETTE_NAMES,
+  parseIconPaletteColor,
   type FoldersFile,
 } from "../foldersConfig";
 import { suggestedRemoteAddPath } from "../sshConfig";
 import {
+  createLocalLeafDirectory,
+  localDirExists,
+  shellSingleQuote,
+} from "../projectFolder";
+import {
   buildAzFolderTree,
   sortFolderEntries,
 } from "../folderDisplay";
+import {
+  resolveFolderIconPalette,
+  resolveHostIconPalette,
+} from "../iconColors";
 import {
   initDevMode,
   isDevMode,
@@ -83,6 +101,119 @@ describe("chemins locaux", () => {
   });
 });
 
+describe("catalogue defaults / local", () => {
+  it("applique toutes les clés absentes sans écraser l'existant", () => {
+    const { data, added } = applyMissingDefaults(
+      {
+        folders: { demo: [{ path: "/a" }] },
+        defaults: { RecentLimit: 5 },
+      },
+      { RecentLimit: 5 }
+    );
+    assert.strictEqual(added, true);
+    assert.strictEqual(data.defaults?.RecentLimit, 5);
+    assert.strictEqual(data.defaults?.DefaultFolder, "");
+    assert.strictEqual(defaultFolderPath(data), undefined);
+    for (const key of Object.keys(DEFAULT_SETTINGS)) {
+      assert.ok(
+        Object.prototype.hasOwnProperty.call(data.defaults, key),
+        `defaults.${key}`
+      );
+    }
+    assert.deepStrictEqual(data.local, []);
+  });
+
+  it("sème local/Documents si local est absent du fichier", () => {
+    const { data, added } = applyMissingDefaults(
+      { folders: {} },
+      {},
+      { seedDefaultLocal: true }
+    );
+    assert.strictEqual(added, true);
+    assert.deepStrictEqual(data.local, DEFAULT_LOCAL_SEED);
+  });
+
+  it("ne sème pas si local: [] est déjà explicite", () => {
+    const { data } = applyMissingDefaults(
+      { folders: {}, local: [] },
+      {},
+      { seedDefaultLocal: true }
+    );
+    assert.deepStrictEqual(data.local, []);
+  });
+
+  it("écrit local: [] et DefaultFolder vide dans le JSON", async () => {
+    const dir = await makeTempDir("ssh-folders-catalog-");
+    const configPath = path.join(dir, "ssh-folders.json");
+    vscodeMock.__setConfig("sshFolders.configPath", configPath);
+    invalidateFoldersCache();
+    try {
+      await writeFoldersFile({ folders: {}, local: [] });
+      const raw = JSON.parse(await fs.readFile(configPath, "utf8")) as FoldersFile;
+      assert.deepStrictEqual(raw.local, []);
+      assert.strictEqual(raw.defaults?.DefaultFolder, "");
+      for (const key of Object.keys(DEFAULT_SETTINGS)) {
+        assert.ok(
+          Object.prototype.hasOwnProperty.call(raw.defaults, key),
+          `defaults.${key}`
+        );
+      }
+    } finally {
+      invalidateFoldersCache();
+      vscodeMock.__clearConfig();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("VirtualHostPosition", () => {
+  const ssh = { alias: "zeta", local: false, favorite: false };
+  const local = { alias: "alpha", local: true, favorite: false };
+  const favLocal = { alias: "zzz", local: true, favorite: true };
+
+  it("défaut alphabet", () => {
+    assert.strictEqual(virtualHostPosition(undefined), "alphabet");
+    assert.strictEqual(
+      virtualHostPosition({ folders: {}, defaults: {} }),
+      "alphabet"
+    );
+  });
+
+  it("top place les VirtualHost avant les SSH", () => {
+    const data: FoldersFile = {
+      folders: {},
+      defaults: { VirtualHostPosition: "top", SortAlphabetical: true },
+    };
+    assert.ok(compareHostRoots(local, ssh, data) < 0);
+    assert.ok(compareHostRoots(ssh, local, data) > 0);
+  });
+
+  it("bottom place les VirtualHost après les SSH", () => {
+    const data: FoldersFile = {
+      folders: {},
+      defaults: { VirtualHostPosition: "bottom", SortAlphabetical: true },
+    };
+    assert.ok(compareHostRoots(local, ssh, data) > 0);
+    assert.ok(compareHostRoots(ssh, local, data) < 0);
+  });
+
+  it("alphabet mélange par nom", () => {
+    const data: FoldersFile = {
+      folders: {},
+      defaults: { VirtualHostPosition: "alphabet", SortAlphabetical: true },
+    };
+    assert.ok(compareHostRoots(local, ssh, data) < 0);
+  });
+
+  it("favoris restent en tête", () => {
+    const data: FoldersFile = {
+      folders: {},
+      defaults: { VirtualHostPosition: "bottom" },
+    };
+    assert.ok(compareHostRoots(favLocal, ssh, data) < 0);
+  });
+});
+
 describe("local[] / VirtualHost", () => {
   it("normalizeFileWithMeta garde local même si folders est absent", () => {
     const { data } = normalizeFileWithMeta({
@@ -109,23 +240,76 @@ describe("local[] / VirtualHost", () => {
   });
 });
 
+describe("création dossier projet (feuille)", () => {
+  it("shellSingleQuote échappe les quotes", () => {
+    assert.strictEqual(shellSingleQuote("a'b"), String.raw`'a'\''b'`);
+  });
+
+  it("crée uniquement la feuille si le parent existe", async () => {
+    const root = await makeTempDir("ssh-folders-mkdir-");
+    const child = path.join(root, "mon-projet");
+    assert.strictEqual(await localDirExists(child), false);
+    await createLocalLeafDirectory(child);
+    assert.strictEqual(await localDirExists(child), true);
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("refuse de créer toute une arborescence manquante", async () => {
+    const root = await makeTempDir("ssh-folders-mkdir-miss-");
+    const deep = path.join(root, "a", "b", "projet");
+    await assert.rejects(
+      () => createLocalLeafDirectory(deep),
+      /Parent folder does not exist|dossier parent/i
+    );
+    await fs.rm(root, { recursive: true, force: true });
+  });
+});
+
 describe("suggestedRemoteAddPath", () => {
-  it("préfère le dossier ouvert à DefaultFolder", () => {
+  it("DefaultFolder vide → dossier IDE ouvert", () => {
+    assert.strictEqual(
+      suggestedRemoteAddPath(undefined, "/home/user/app"),
+      "/home/user/app"
+    );
+    assert.strictEqual(suggestedRemoteAddPath("", "/home/user/app"), "/home/user/app");
+    assert.strictEqual(suggestedRemoteAddPath(undefined, undefined), "");
+  });
+
+  it("DefaultFolder connu (ouvert dessous) → DefaultFolder", () => {
     assert.strictEqual(
       suggestedRemoteAddPath(
         "/opt/docker/projects",
         "/opt/docker/projects/grafana/"
       ),
-      "/opt/docker/projects/grafana"
+      "/opt/docker/projects"
     );
   });
 
-  it("propose DefaultFolder si rien n'est ouvert", () => {
+  it("DefaultFolder connu via dossiers enregistrés → DefaultFolder", () => {
     assert.strictEqual(
-      suggestedRemoteAddPath("/opt/docker/projects", undefined),
+      suggestedRemoteAddPath("/opt/docker/projects", undefined, [
+        "/opt/docker/projects/grafana",
+      ]),
       "/opt/docker/projects"
     );
-    assert.strictEqual(suggestedRemoteAddPath(undefined, undefined), "");
+  });
+
+  it("DefaultFolder inconnu sur l'hôte → dossier IDE", () => {
+    assert.strictEqual(
+      suggestedRemoteAddPath(
+        "/opt/docker/projects",
+        "/home/user/app",
+        ["/home/user/other"]
+      ),
+      "/home/user/app"
+    );
+  });
+
+  it("DefaultFolder inconnu et rien d'ouvert → vide", () => {
+    assert.strictEqual(
+      suggestedRemoteAddPath("/opt/docker/projects", undefined, ["/home/x"]),
+      ""
+    );
   });
 });
 
@@ -186,6 +370,94 @@ describe("Favoris", () => {
     });
     assert.strictEqual(data.folders.demo[0].favorite, true);
     assert.strictEqual(localFoldersForHost(data, "Prod")[0].favorite, true);
+  });
+});
+
+describe("icon palette", () => {
+  it("parseIconPaletteColor accepte 20 noms et alias", () => {
+    for (const name of ICON_PALETTE_NAMES) {
+      assert.strictEqual(parseIconPaletteColor(name), name);
+    }
+    assert.strictEqual(parseIconPaletteColor("gris"), "grey");
+    assert.strictEqual(parseIconPaletteColor("VIOLET"), "purple");
+    assert.strictEqual(parseIconPaletteColor("unknown"), undefined);
+  });
+
+  it("HostIconColors prime sur filtre host", () => {
+    const data: FoldersFile = {
+      folders: {},
+      defaults: {
+        HostIconColors: { "HEIG-prod": "blue" },
+        IconColorFilters: [
+          { scope: "host", name: "HEIG-*", color: "purple" },
+        ],
+      },
+    };
+    assert.strictEqual(resolveHostIconPalette("HEIG-prod", data), "blue");
+    assert.strictEqual(resolveHostIconPalette("HEIG-lab", data), "purple");
+  });
+
+  it("hôte et dossier sans héritage", () => {
+    const data: FoldersFile = {
+      folders: {
+        "demo-docker": [
+          { path: "/opt/x", color: "green" },
+          { path: "/opt/y" },
+        ],
+      },
+      defaults: {
+        HostIconColors: { "demo-docker": "purple" },
+      },
+    };
+    assert.strictEqual(resolveHostIconPalette("demo-docker", data), "purple");
+    assert.strictEqual(
+      resolveFolderIconPalette("demo-docker", data.folders["demo-docker"][0], data),
+      "green"
+    );
+    assert.strictEqual(
+      resolveFolderIconPalette("demo-docker", data.folders["demo-docker"][1], data),
+      undefined
+    );
+  });
+
+  it("filtres dossier : ordre et archive", () => {
+    const data: FoldersFile = {
+      folders: {
+        demo: [
+          { path: "/opt/projects/_old/legacy", favorite: true },
+          { path: "/opt/projects/grafana" },
+        ],
+      },
+      defaults: {
+        ArchiveParents: ["_old"],
+        IconColorFilters: [
+          { scope: "folder", favorite: true, color: "yellow" },
+          { scope: "folder", archive: true, color: "grey" },
+        ],
+      },
+    };
+    const fav = data.folders.demo[0];
+    const active = data.folders.demo[1];
+    assert.strictEqual(resolveFolderIconPalette("demo", fav, data), "yellow");
+    assert.strictEqual(resolveFolderIconPalette("demo", active, data), undefined);
+  });
+
+  it("conserve color au normalize", () => {
+    const { data } = normalizeFileWithMeta({
+      folders: {
+        demo: [{ path: "/a", color: "teal" }],
+      },
+      defaults: {
+        HostIconColors: { Demo: "pink" },
+        IconColorFilters: [
+          { scope: "host", name: "*", color: "red" },
+          { scope: "host", path: "/nope", color: "red" },
+        ],
+      },
+    });
+    assert.strictEqual(data.folders.demo[0].color, "teal");
+    assert.strictEqual(data.defaults?.HostIconColors?.Demo, "pink");
+    assert.strictEqual(data.defaults?.IconColorFilters?.length, 1);
   });
 });
 
