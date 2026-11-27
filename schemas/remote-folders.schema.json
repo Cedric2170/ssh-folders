@@ -5,6 +5,47 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["folders"],
+  "$defs": {
+    "iconPaletteColor": {
+      "type": "string",
+      "enum": [
+        "green",
+        "vert",
+        "blue",
+        "bleu",
+        "orange",
+        "red",
+        "rouge",
+        "purple",
+        "violet",
+        "yellow",
+        "jaune",
+        "cyan",
+        "teal",
+        "turquoise",
+        "magenta",
+        "pink",
+        "rose",
+        "brown",
+        "marron",
+        "grey",
+        "gray",
+        "gris",
+        "lime",
+        "citron",
+        "indigo",
+        "gold",
+        "or",
+        "coral",
+        "corail",
+        "olive",
+        "navy",
+        "marine",
+        "amber",
+        "ambre"
+      ]
+    }
+  },
   "properties": {
     "$schema": {
       "type": "string"
@@ -14,9 +55,17 @@
       "description": "Paramètres globaux, valables pour tous les hôtes. On peut y ajouter des clés plus tard.",
       "properties": {
         "DefaultFolder": {
-          "type": "string",
-          "pattern": "^/",
-          "description": "Chemin POSIX ouvert par défaut à la connexion d'un hôte (pas de ~)."
+          "description": "Chemin POSIX proposé par défaut à l'ajout d'un dossier via + (préremplissage éditable librement) et pour suggérer le libellé (pas de ~). Chaîne vide = non défini (ignoré). N'ouvre pas automatiquement au clic sur un hôte.",
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 0
+            },
+            {
+              "type": "string",
+              "pattern": "^/"
+            }
+          ]
         },
         "RecentLimit": {
           "type": "integer",
@@ -33,12 +82,21 @@
         "GroupSameName": {
           "type": "boolean",
           "default": true,
-          "description": "Dans la vue dossiers A-Z, regroupe les dossiers d'une même famille (ex. grafana et grafana-dev). Vrai par défaut. false affiche chaque dossier séparément."
+          "description": "Dans la vue dossiers A-Z, regroupe les dossiers d'une même famille (ex. app-one et app-one-dev). Vrai par défaut. false affiche chaque dossier séparément."
         },
         "HiddenHosts": {
           "type": "array",
           "default": [],
-          "description": "Alias Host SSH à masquer dans l'arbre et le choix d'hôte. Correspondance sans casse. Jokers * et ? acceptés. Exemple : [\"gitlab*\", \"github.com\"].",
+          "description": "Alias Host SSH à masquer dans l'arbre et le choix d'hôte. Correspondance sans casse. Jokers * et ? acceptés. Exemple : [\"hide*\", \"tmp-*\"].",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "FavoriteHosts": {
+          "type": "array",
+          "default": [],
+          "description": "Alias Host SSH ou VirtualHost épinglés en tête de la vue par hôte (icône étoile). Correspondance sans casse. Liste vide par défaut.",
           "items": {
             "type": "string",
             "minLength": 1
@@ -52,6 +110,21 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "ArchiveParents": {
+          "type": "array",
+          "default": ["_old", "old"],
+          "description": "Noms de dossier parent qui marquent une entrée comme archive/inactif. Correspondance sans casse avec le nom du parent immédiat du chemin (ex. /opt/docker/projects/_old/legacy). Ces dossiers sont grisés, regroupés à part en vue A-Z, et placés en fin de liste (après LastFolder). Par défaut : _old et old.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "VirtualHostPosition": {
+          "type": "string",
+          "enum": ["alphabet", "top", "bottom"],
+          "default": "alphabet",
+          "description": "Position des VirtualHost (local[]) dans la vue par hôte. alphabet = mélangés aux hôtes SSH (tri A-Z si SortAlphabetical). top = VirtualHost au-dessus des hôtes SSH. bottom = VirtualHost en dessous. Les favoris restent en tête dans tous les cas."
         },
         "ActiveColor": {
           "description": "Valeur historique conservée dans le JSON. La couleur affichée vient de la couleur de thème sshFolders.activeForeground (Settings → workbench.colorCustomizations), pas de ce champ.",
@@ -77,6 +150,52 @@
               "pattern": "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$"
             }
           ]
+        },
+        "HostIconColors": {
+          "type": "object",
+          "description": "Couleur par clé = alias Host ou VirtualHost (exact ou motif *, ?). Pas les chemins de dossiers — utiliser IconColorFilters avec scope folder et path pour *shared*, etc.",
+          "additionalProperties": {
+            "$ref": "#/$defs/iconPaletteColor"
+          },
+          "default": {}
+        },
+        "IconColorFilters": {
+          "type": "array",
+          "description": "Filtres de couleur d'icône (ordre = priorité, premier match).",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["scope", "color"],
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": ["host", "folder"]
+              },
+              "color": {
+                "$ref": "#/$defs/iconPaletteColor"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Motif sur l'alias (hôte ou parent du dossier). Jokers * et ?."
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Motif sur le chemin (dossiers, scope folder). Jokers * et ?."
+              },
+              "favorite": {
+                "type": "boolean",
+                "const": true
+              },
+              "archive": {
+                "type": "boolean",
+                "const": true,
+                "description": "Dossier archive (ArchiveParents) ; scope folder uniquement."
+              }
+            }
+          }
         }
       }
     },
@@ -98,6 +217,15 @@
               "type": "string",
               "pattern": "^/",
               "description": "Chemin POSIX absolu sur l'hôte distant (pas de ~)."
+            },
+            "favorite": {
+              "type": "boolean",
+              "default": false,
+              "description": "Si vrai, le dossier est épinglé en tête sous l'hôte et dans un groupe Favoris en vue A-Z (tout en restant dans la liste normale)."
+            },
+            "color": {
+              "$ref": "#/$defs/iconPaletteColor",
+              "description": "Couleur d'icône (palette)."
             }
           }
         }
@@ -125,6 +253,15 @@
           "label": {
             "type": "string",
             "description": "Libellé affiché. Si omis, le nom du dossier est utilisé."
+          },
+          "favorite": {
+            "type": "boolean",
+            "default": false,
+            "description": "Si vrai, le dossier local est épinglé en tête sous le VirtualHost et dans le groupe Favoris en vue A-Z (tout en restant dans la liste normale)."
+          },
+          "color": {
+            "$ref": "#/$defs/iconPaletteColor",
+            "description": "Couleur d'icône (palette)."
           }
         }
       }

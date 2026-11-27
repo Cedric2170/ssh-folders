@@ -47,6 +47,11 @@ build/
 vsix/*.vsix
 *.vsix
 
+# Notes locales (ne pas committer)
+todo.md
+todo_optimisation.md
+todo_*.md
+
 # Backup / Temporaires
 backup/
 temp/
@@ -56,4 +61,3 @@ tmp/
 *.old
 */old/
 *old*/
-todo.md

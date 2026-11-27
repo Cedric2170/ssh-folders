@@ -63,8 +63,10 @@ Le schéma JSON (`./remote-folders.schema.json`) est dans le même dossier :
 Le chemin doit être POSIX et absolu (`/...`). On peut aussi ajouter, renommer
 ou supprimer un dossier depuis le menu de l'arbre.
 
-`defaults.DefaultFolder` s'applique à tous les hôtes : un clic sur l'hôte
-ouvre ce chemin au lieu d'une fenêtre distante vide.
+`defaults.DefaultFolder` est la proposition de base du champ chemin lors de
+l'ajout (`+`) : le chemin est prérempli mais entièrement éditable (aucun
+forçage). Il sert aussi à suggérer le libellé. Un clic sur un hôte n'ouvre
+pas ce chemin (sélecteur de dossier libre).
 
 `defaults.RecentLimit` fixe le nombre d'entrées dans la vue **Derniers accès**
 (20 par défaut, entre 1 et 100). L'historique lui-même n'est pas dans ce JSON :
@@ -75,17 +77,32 @@ et la liste des dossiers. Vrai par défaut. `false` conserve l'ordre du fichier
 SSH config et du JSON. La vue **Derniers accès** reste triée par date.
 
 `defaults.GroupSameName` regroupe dans la vue A-Z les dossiers d'une même
-famille (`grafana` et `grafana-dev`). Vrai par défaut. `false` affiche chaque
+famille (`app-one` et `app-one-dev`). Vrai par défaut. `false` affiche chaque
 dossier séparément.
 
 `defaults.HiddenHosts` masque des alias Host dans l'arbre, les vues dossiers /
 derniers accès, et le choix d'hôte du bouton +. Liste vide par défaut.
 Correspondance sans casse ; `*` et `?` acceptés. Exemple :
-`["gitlab*", "github.com"]`.
+`["hide*", "tmp-*"]`.
+
+`defaults.FavoriteHosts` épingle des alias Host / VirtualHost en tête de la
+vue par hôte (icône étoile). Liste vide par défaut. Bascule via le menu
+contextuel ★ sur un hôte.
+
+Sur une entrée de dossier (`folders[]` ou `local[]`), `"favorite": true`
+l'épingle en tête sous l'hôte et dans un groupe **Favoris** en vue A-Z, tout
+en le laissant aussi dans la liste normale. Même bascule via ★.
 
 `defaults.LastFolder` place ces libellés en fin de liste (vue par hôte et
 vue A-Z). Correspondance sans casse avec le `label`. Par défaut :
 `["Projects", "_old"]`. L'ordre du tableau fixe l'ordre relatif en bas.
+
+`defaults.ArchiveParents` marque comme archive/inactif les dossiers dont le
+**parent immédiat** du chemin figure dans la liste (sans casse). Par défaut :
+`["_old", "old"]`. Exemple : `/opt/docker/projects/_old/legacy-api`. Ces
+entrées sont grisées (`disabledForeground`), placées après `LastFolder`, et
+regroupées à part en vue A-Z (sans se mélanger aux dossiers actifs du même
+nom).
 
 Au chargement, les clés de `defaults` qui ont une valeur par défaut et qui
 manquent dans le JSON sont ajoutées. Une clé déjà présente n'est pas modifiée.
@@ -101,16 +118,19 @@ Le bouton **+** ouvre d'abord la liste des hôtes SSH :
 
 Ensuite :
 
-- **Chemin POSIX** : prérempli avec `defaults.DefaultFolder`.
+- **Chemin POSIX** : prérempli avec le dossier déjà ouvert pour cet alias s'il
+  existe, sinon `defaults.DefaultFolder` ; le champ reste libre (on peut
+  choisir tout autre chemin). En local, le parcours démarre sur le dossier
+  `file://` ouvert s'il y en a un, sinon `~/`.
 - **Nom affiché** : la partie du chemin **après** `DefaultFolder`, sans `/`
-  initial. Exemple : `/opt/docker/projects/grafana` donne `grafana`.
+  initial. Exemple : `/opt/docker/projects/app-one` donne `app-one`.
 
 ### Vues
 
-La vue **Dossiers A-Z** trie alphabétiquement (sauf si `SortAlphabetical` vaut `false`), affiche `Census-Agent`
+La vue **Dossiers A-Z** trie alphabétiquement (sauf si `SortAlphabetical` vaut `false`), affiche `App-One`
 (majuscule en début de mot, après un espace ou un tiret) et, si
 `GroupSameName` est vrai, regroupe les noms de la même famille
-(`census-agent`, `census-dev` sous **Census**).
+(`app-one`, `app-one-dev` sous **App**).
 
 La vue **Derniers accès** liste les dernières connexions (hôte ou dossier),
 triées par date. Un bouton **-** à droite retire une entrée de l'historique,
@@ -121,7 +141,7 @@ Réglage optionnel : `sshFolders.configPath`.
 Le fichier SSH lu est `remote.SSH.configFile` s'il est défini, sinon `~/.ssh/config`.
 
 Les alias SSH sont comparés sans tenir compte de la casse :
-`HEIG-DockerDMZ-01` et `heig-dockerdmz-01` désignent le même hôte.
+`Work-DockerDMZ-01` et `work-dockerdmz-01` désignent le même hôte.
 La connexion Remote-SSH utilise l'alias tel qu'il est écrit dans le fichier SSH config.
 
 ## Publier

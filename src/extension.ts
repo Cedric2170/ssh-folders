@@ -10,33 +10,38 @@ import {
   ensureFoldersFile,
   expandLocalPath,
   folderLabel,
+  foldersForHost,
   getFoldersConfigPath,
   invalidateFoldersCache,
   labelFromDefaultFolder,
   listLocalSubdirectories,
   localVirtualHosts,
-  projectsRootForHost,
   readFoldersFile,
-  repairPathUnderProjectsRoot,
   removeFolderEntry,
   removeLocalFolderEntry,
   renameFolderEntry,
   renameLocalFolderEntry,
   sortAlphabetical,
   toTildePath,
+  toggleFolderFavorite,
+  toggleHostFavorite,
+  toggleLocalFolderFavorite,
   visibleHostAliases,
 } from "./foldersConfig";
 import { sortHostAliases } from "./folderDisplay";
 import {
+  activeRemotePathForHost,
   canonicalHostAlias,
   currentSshHost,
   getSshConfigPath,
+  hostFromRemoteAuthority,
   initHostCache,
   isCachedSshSource,
   listHostAliases,
   reloadHostAliases,
   sameHost,
   sshRemoteAuthority,
+  suggestedRemoteAddPath,
 } from "./sshConfig";
 import {
   ActiveItemDecorationProvider,
@@ -51,9 +56,21 @@ import {
   type OpenTarget,
   type ViewMode,
 } from "./treeProvider";
-import { watchOpenWindows } from "./openWindows";
+import { openRemotePathForHost, watchOpenWindows } from "./openWindows";
 import { initRecentAccess, recordAccess, removeAccess } from "./recentAccess";
 import { initDevMode, isDevMode, prepareDevSandbox } from "./devMode";
+import { confirmAndCreateProjectFolder } from "./projectFolder";
+
+/** Dossier local ouvert dans la fenêtre courante, en chemin `~/...` si possible. */
+function currentOpenLocalFolderPath(): string | undefined {
+  const folder = (vscode.workspace.workspaceFolders ?? []).find(
+    (item) => item.uri.scheme === "file"
+  );
+  if (!folder) {
+    return undefined;
+  }
+  return toTildePath(folder.uri.fsPath);
+}
 
 function isOpenTarget(value: unknown): value is OpenTarget {
   if (!value || typeof value !== "object") {
@@ -151,11 +168,8 @@ async function openRemoteHost(
   newWindow: boolean
 ): Promise<unknown> {
   const host = await canonicalHostAlias(alias);
-  const data = await readFoldersFile();
-  const folder = defaultFolderPath(data);
-  if (folder) {
-    return openRemoteFolder(host, folder, newWindow);
-  }
+  // Pas de DefaultFolder ici : laisse le sélecteur de dossier libre
+  // (évite un chemin type /opt/docker/... imposé sur un nouvel hôte).
   await recordAccess({ kind: "host", alias: host });
   return vscode.commands.executeCommand("vscode.newWindow", {
     remoteAuthority: sshRemoteAuthority(host),
@@ -169,10 +183,26 @@ async function openRemoteFolder(
   newWindow: boolean
 ): Promise<unknown> {
   const host = await canonicalHostAlias(alias);
+  const created = await confirmAndCreateProjectFolder({
+    alias: host,
+    folderPath: remotePath,
+    local: false,
+  });
+  if (!created) {
+    return undefined;
+  }
+  // Réutilise l'autorité déjà connectée dans cette fenêtre si possible.
+  const liveAuthority = vscode.workspace.workspaceFolders?.find((folder) => {
+    if (folder.uri.scheme !== "vscode-remote") {
+      return false;
+    }
+    const remoteHost = hostFromRemoteAuthority(folder.uri.authority);
+    return remoteHost ? sameHost(remoteHost, host) : false;
+  })?.uri.authority;
   await recordAccess({ kind: "folder", alias: host, path: remotePath });
   const uri = vscode.Uri.from({
     scheme: "vscode-remote",
-    authority: sshRemoteAuthority(host),
+    authority: liveAuthority ?? sshRemoteAuthority(host),
     path: remotePath,
   });
   return vscode.commands.executeCommand("vscode.openFolder", uri, {
@@ -184,7 +214,10 @@ async function openRemoteFolder(
 async function openLocalHost(alias: string): Promise<undefined> {
   await recordAccess({ kind: "host", alias, local: true });
   void vscode.window.showInformationMessage(
-    `SSH - Folders : ouvrez un dossier sous « ${alias} » (groupe local).`
+    vscode.l10n.t(
+      'SSH - Folders: open a folder under "{0}" (local group).',
+      alias
+    )
   );
   return undefined;
 }
@@ -195,6 +228,14 @@ async function openLocalFolder(
   newWindow: boolean
 ): Promise<unknown> {
   const folderPath = assertLocalPath(localPath);
+  const created = await confirmAndCreateProjectFolder({
+    alias,
+    folderPath,
+    local: true,
+  });
+  if (!created) {
+    return undefined;
+  }
   await recordAccess({
     kind: "folder",
     alias,
@@ -234,7 +275,7 @@ async function openTreeItem(
     }
   } catch (error) {
     void vscode.window.showErrorMessage(
-      `SSH - Folders : ${(error as Error).message}`
+      vscode.l10n.t("SSH - Folders: {0}", (error as Error).message)
     );
   }
   return undefined;
@@ -250,25 +291,30 @@ async function pickLocalFolderPath(
   virtualHost: string
 ): Promise<string | undefined> {
   const picker = vscode.window.createQuickPick<LocalPathPickItem>();
-  picker.title = `Ajouter un dossier local — ${virtualHost}`;
-  picker.placeholder =
-    "Choisir un dossier, naviguer avec Entrée, ou saisir un chemin (~/...)";
+  picker.title = vscode.l10n.t("Add a local folder — {0}", virtualHost);
+  picker.placeholder = vscode.l10n.t(
+    "Choose a folder, navigate with Enter, or type a path (~/...)"
+  );
   picker.ignoreFocusOut = true;
   picker.matchOnDescription = true;
 
-  let current = "~";
+  let current = currentOpenLocalFolderPath() ?? "~";
 
   const refresh = async (): Promise<void> => {
     picker.busy = true;
     const display = current === "~" ? "~" : current.replace(/\/+$/, "");
-    picker.title = `Ajouter un dossier local — ${virtualHost}  ·  ${display}`;
+    picker.title = vscode.l10n.t(
+      "Add a local folder — {0}  ·  {1}",
+      virtualHost,
+      display
+    );
     const absolute = expandLocalPath(display);
     const home = expandLocalPath("~");
     const subdirs = await listLocalSubdirectories(display);
     const items: LocalPathPickItem[] = [
       {
         action: "use",
-        label: "$(check) Utiliser ce dossier",
+        label: vscode.l10n.t("$(check) Use this folder"),
         description: display,
         target: display,
         alwaysShow: true,
@@ -318,12 +364,23 @@ async function pickLocalFolderPath(
           try {
             const normalized = assertLocalPath(typed);
             const abs = expandLocalPath(normalized);
-            const stat = await fs.stat(abs);
-            if (!stat.isDirectory()) {
-              void vscode.window.showWarningMessage(
-                "Ce chemin n'est pas un dossier."
-              );
-              return;
+            try {
+              const stat = await fs.stat(abs);
+              if (!stat.isDirectory()) {
+                void vscode.window.showWarningMessage(
+                  vscode.l10n.t("This path is not a folder.")
+                );
+                return;
+              }
+            } catch (error) {
+              const err = error as NodeJS.ErrnoException;
+              if (err.code !== "ENOENT") {
+                void vscode.window.showWarningMessage(
+                  err.message || String(error)
+                );
+                return;
+              }
+              // Absent : création feuille proposée plus bas (confirmAndCreateProjectFolder).
             }
             finish(toTildePath(normalized));
           } catch (error) {
@@ -371,8 +428,12 @@ async function pickHost(preferred?: {
   if (sshAliases.length === 0 && localAliases.length === 0) {
     void vscode.window.showWarningMessage(
       listed.length === 0 && localAliases.length === 0
-        ? "Aucun hôte SSH ni groupe local. Ajoutez un VirtualHost dans local[] ou un Host SSH."
-        : "Tous les hôtes sont masqués (defaults.HiddenHosts)."
+        ? vscode.l10n.t(
+            "No SSH host or local group. Add a VirtualHost in local[] or an SSH Host."
+          )
+        : vscode.l10n.t(
+            "All hosts are hidden (defaults.HiddenHosts)."
+          )
     );
     return undefined;
   }
@@ -394,9 +455,10 @@ async function pickHost(preferred?: {
   const prefillAlias = preferred?.alias?.trim() || currentSshHost() || "";
   const prefillLocal = preferred?.local === true;
   const picker = vscode.window.createQuickPick<PickItem>();
-  picker.title = "SSH - Folders";
-  picker.placeholder =
-    "Hôte SSH ou groupe local (VirtualHost) — saisie libre pour un nouveau groupe local";
+  picker.title = vscode.l10n.t("SSH - Folders");
+  picker.placeholder = vscode.l10n.t(
+    "SSH host or local group (VirtualHost) — type freely for a new local group"
+  );
   picker.items = items;
   picker.ignoreFocusOut = true;
   const match = prefillAlias
@@ -540,7 +602,10 @@ async function activateOnce(
       await prepareDevSandbox(context);
     } catch (error) {
       void vscode.window.showErrorMessage(
-        `SSH - Folders : mode dev impossible (${(error as Error).message}). Les fichiers personnels ne sont pas utilisés.`
+        vscode.l10n.t(
+          "SSH - Folders: dev mode unavailable ({0}). Personal files are not used.",
+          (error as Error).message
+        )
       );
     }
     invalidateFoldersCache();
@@ -634,10 +699,18 @@ async function activateOnce(
         return;
       }
       const folderPath = assertLocalPath(localPath);
+      const created = await confirmAndCreateProjectFolder({
+        alias,
+        folderPath,
+        local: true,
+      });
+      if (!created) {
+        return;
+      }
       const suggestedLabel = folderLabel({ path: folderPath });
       const label = await vscode.window.showInputBox({
-        title: `Libellé — ${alias}`,
-        prompt: "Libellé affiché (optionnel)",
+        title: vscode.l10n.t("Label — {0}", alias),
+        prompt: vscode.l10n.t("Display label (optional)"),
         placeHolder: "Projets",
         value: suggestedLabel,
       });
@@ -659,24 +732,27 @@ async function activateOnce(
 
     const data = await readFoldersFile();
     const defaultFolder = defaultFolderPath(data);
-    const projectsRoot = projectsRootForHost(alias, data.folders, defaultFolder);
+    const openPath =
+      activeRemotePathForHost(alias) ?? openRemotePathForHost(alias);
+    const knownPaths = foldersForHost(data, alias).map((entry) => entry.path);
+    const prefillPath = suggestedRemoteAddPath(
+      defaultFolder,
+      openPath,
+      knownPaths
+    );
     const remotePath = await vscode.window.showInputBox({
-      title: `Ajouter un dossier — ${alias}`,
-      prompt: "Chemin POSIX absolu sur l'hôte distant",
-      placeHolder: defaultFolder ?? "/home/utilisateur/projet",
-      value: defaultFolder ?? "",
-      valueSelection: defaultFolder
-        ? [defaultFolder.length, defaultFolder.length]
-        : undefined,
+      title: vscode.l10n.t("Add a folder — {0}", alias),
+      prompt: vscode.l10n.t(
+        "Absolute POSIX path on the remote host (freely editable)"
+      ),
+      placeHolder:
+        prefillPath || defaultFolder || "/home/utilisateur/projet",
+      value: prefillPath,
+      // Sélectionne toute la proposition pour la remplacer facilement.
+      valueSelection: prefillPath ? [0, prefillPath.length] : undefined,
       validateInput: (value) => {
         try {
-          const pathValue = assertRemotePath(value);
-          if (projectsRoot) {
-            const fixed = repairPathUnderProjectsRoot(pathValue, projectsRoot);
-            if (fixed !== pathValue) {
-              return `Le chemin semble manquer « ${path.posix.basename(projectsRoot.replace(/\/+$/, ""))} ». Utilisez plutôt : ${fixed}`;
-            }
-          }
+          assertRemotePath(value);
           return undefined;
         } catch (error) {
           return (error as Error).message;
@@ -688,10 +764,18 @@ async function activateOnce(
     }
 
     const folderPath = assertRemotePath(remotePath);
+    const created = await confirmAndCreateProjectFolder({
+      alias,
+      folderPath,
+      local: false,
+    });
+    if (!created) {
+      return;
+    }
     const suggestedLabel = labelFromDefaultFolder(folderPath, defaultFolder);
     const label = await vscode.window.showInputBox({
-      title: `Libellé — ${alias}`,
-      prompt: "Libellé affiché (optionnel)",
+      title: vscode.l10n.t("Label — {0}", alias),
+      prompt: vscode.l10n.t("Display label (optional)"),
       placeHolder: "projet-api",
       value: suggestedLabel,
     });
@@ -715,9 +799,9 @@ async function activateOnce(
       return;
     }
     const label = await vscode.window.showInputBox({
-      title: "Renommer le dossier",
+      title: vscode.l10n.t("Rename folder"),
       value: item.label?.toString() ?? "",
-      prompt: "Nouveau libellé (vide = nom du dossier)",
+      prompt: vscode.l10n.t("New label (empty = folder name)"),
     });
     if (label === undefined) {
       return;
@@ -738,12 +822,17 @@ async function activateOnce(
     if (!(item instanceof FolderItem)) {
       return;
     }
+    const deleteAction = vscode.l10n.t("Remove");
     const confirmed = await vscode.window.showWarningMessage(
-      `Supprimer « ${item.label} » (${item.entry.path}) ?`,
+      vscode.l10n.t(
+        'Remove "{0}" ({1})?',
+        String(item.label ?? ""),
+        item.entry.path
+      ),
       { modal: true },
-      "Supprimer"
+      deleteAction
     );
-    if (confirmed !== "Supprimer") {
+    if (confirmed !== deleteAction) {
       return;
     }
     try {
@@ -813,6 +902,37 @@ async function activateOnce(
     vscode.commands.registerCommand("sshFolders.renameFolder", renameFolder),
     vscode.commands.registerCommand("sshFolders.removeFolder", removeFolder),
     vscode.commands.registerCommand(
+      "sshFolders.toggleFavorite",
+      async (item?: unknown) => {
+        try {
+          if (item instanceof HostItem) {
+            const next = await toggleHostFavorite(item.alias);
+            refresh();
+            void vscode.window.showInformationMessage(
+              next
+                ? vscode.l10n.t("\"{0}\" added to favorites.", item.alias)
+                : vscode.l10n.t("\"{0}\" removed from favorites.", item.alias)
+            );
+            return;
+          }
+          if (item instanceof FolderItem) {
+            const next = item.local
+              ? await toggleLocalFolderFavorite(item.alias, item.path)
+              : await toggleFolderFavorite(item.alias, item.path);
+            refresh();
+            const name = item.label?.toString() ?? item.path;
+            void vscode.window.showInformationMessage(
+              next
+                ? vscode.l10n.t("\"{0}\" added to favorites.", name)
+                : vscode.l10n.t("\"{0}\" removed from favorites.", name)
+            );
+          }
+        } catch (error) {
+          void vscode.window.showErrorMessage((error as Error).message);
+        }
+      }
+    ),
+    vscode.commands.registerCommand(
       "sshFolders.removeRecent",
       async (item?: unknown) => {
         const target = toOpenTarget(item);
@@ -840,7 +960,10 @@ async function activateOnce(
         await openTextFile(getSshConfigPath());
       } catch {
         void vscode.window.showErrorMessage(
-          `Fichier SSH config introuvable : ${getSshConfigPath()}`
+          vscode.l10n.t(
+            "SSH config file not found: {0}",
+            getSshConfigPath()
+          )
         );
       }
     })

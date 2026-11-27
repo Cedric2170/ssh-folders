@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1
+
+- Favoris : `FavoriteHosts` et `favorite` sur les dossiers (en tête, toujours visibles dans les listes).
+- Multi-langue : anglais, français, allemand, espagnol, italien (`package.nls` + `vscode.l10n`).
+- Couleurs d’icônes : palette 20 couleurs, `HostIconColors`, `IconColorFilters` (hôte / chemin).
+- Archives : `ArchiveParents` (`_old` / `old`) — grisées, en fin de liste, sous-projets imbriqués et dépliables.
+- Ajout `+` : chemin proposé via `DefaultFolder` / dossier ouvert ; création du chemin absent (`mkdir -p`, parents inclus), y compris à l’ouverture.
+- `VirtualHostPosition` : placement des groupes locaux vs hôtes SSH.
+- Docs : `docs/configuration.{fr,en}.md`, `docs/icon-colors.{fr,en}.md` ; exemples génériques `demo-*` / `work-*`.
+
 ## 0.3.0
 
 - Dossiers locaux du poste de base via `local[]` et `VirtualHost` (serveurs virtuels, ouverture `file://`).

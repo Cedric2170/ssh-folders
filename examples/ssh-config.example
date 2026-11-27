@@ -1,5 +1,6 @@
 # Modèle de démonstration, à copier à la main si besoin.
 # L'extension ne modifie pas ~/.ssh/config.
+# Aligné avec examples/ssh-folders.example.json (bac à sable exemples).
 
 Host demo-docker
   HostName demo-docker.example.com
@@ -7,4 +8,17 @@ Host demo-docker
 
 Host demo-web
   HostName demo-web.example.com
+  User demo
+
+Host work-prod
+  HostName work-prod.example.com
+  User demo
+
+Host work-lab
+  HostName work-lab.example.com
+  User demo
+
+# Masqué via defaults.HiddenHosts : ["hide*"]
+Host hide-ci
+  HostName hide-ci.example.com
   User demo

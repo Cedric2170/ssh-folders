@@ -1,5 +1,7 @@
 import {
   folderLabel,
+  isArchiveFolderPath,
+  isFavoriteFolder,
   lastFolderRank,
   type FolderEntry,
   type FoldersFile,
@@ -81,6 +83,31 @@ export function sortHostAliases(aliases: readonly string[]): string[] {
   return [...aliases].sort(compareText);
 }
 
+function compareByArchive(
+  aPath: string,
+  bPath: string,
+  data: FoldersFile | undefined
+): number {
+  const aArch = isArchiveFolderPath(aPath, data);
+  const bArch = isArchiveFolderPath(bPath, data);
+  if (aArch !== bArch) {
+    return aArch ? 1 : -1;
+  }
+  return 0;
+}
+
+function compareByFavorite(
+  a: FolderEntry,
+  b: FolderEntry
+): number {
+  const aFav = isFavoriteFolder(a);
+  const bFav = isFavoriteFolder(b);
+  if (aFav !== bFav) {
+    return aFav ? -1 : 1;
+  }
+  return 0;
+}
+
 function compareByLastFolder(
   aLabel: string,
   bLabel: string,
@@ -106,6 +133,14 @@ export function sortFolderEntries(
   const alphabetical = options.alphabetical !== false;
   const data = options.data;
   return [...entries].sort((a, b) => {
+    const byArch = compareByArchive(a.path, b.path, data);
+    if (byArch !== 0) {
+      return byArch;
+    }
+    const byFav = compareByFavorite(a, b);
+    if (byFav !== 0) {
+      return byFav;
+    }
     const byLast = compareByLastFolder(folderLabel(a), folderLabel(b), data);
     if (byLast !== 0) {
       return byLast;
@@ -121,11 +156,84 @@ export function sortFolderEntries(
   });
 }
 
+export type NestedFolderEntry = {
+  entry: FolderEntry;
+  children: NestedFolderEntry[];
+};
+
+function normalizeTreePath(folderPath: string): string {
+  return folderPath.replace(/\\/g, "/").replace(/\/+$/, "") || "/";
+}
+
+/**
+ * Regroupe sous un parent enregistré les dossiers archive dont le chemin est
+ * un enfant direct (ex. `_old` dépliable → `legacy-api`). Les autres entrées
+ * restent à la racine (liste plate).
+ */
+export function nestArchiveFolderEntries(
+  entries: readonly FolderEntry[],
+  options: { alphabetical?: boolean; data?: FoldersFile } = {}
+): NestedFolderEntry[] {
+  const data = options.data;
+  const byPath = new Map<string, FolderEntry>();
+  for (const entry of entries) {
+    byPath.set(normalizeTreePath(entry.path), entry);
+  }
+
+  const childIds = new Set<string>();
+  const childrenOf = new Map<string, FolderEntry[]>();
+
+  for (const entry of entries) {
+    if (!isArchiveFolderPath(entry.path, data)) {
+      continue;
+    }
+    const childKey = normalizeTreePath(entry.path);
+    const parentKey = childKey.includes("/")
+      ? childKey.slice(0, childKey.lastIndexOf("/"))
+      : "";
+    if (!parentKey || !byPath.has(parentKey)) {
+      continue;
+    }
+    const list = childrenOf.get(parentKey) ?? [];
+    list.push(entry);
+    childrenOf.set(parentKey, list);
+    childIds.add(childKey);
+  }
+
+  const roots = entries.filter(
+    (entry) => !childIds.has(normalizeTreePath(entry.path))
+  );
+  const sortOpts = {
+    alphabetical: options.alphabetical,
+    data,
+  };
+
+  return sortFolderEntries(roots, sortOpts).map((entry) => {
+    const key = normalizeTreePath(entry.path);
+    const nested = childrenOf.get(key) ?? [];
+    return {
+      entry,
+      children: sortFolderEntries(nested, sortOpts).map((child) => ({
+        entry: child,
+        children: [],
+      })),
+    };
+  });
+}
+
 function compareRefs(
   a: AzFolderRef,
   b: AzFolderRef,
   data: FoldersFile | undefined
 ): number {
+  const byArch = compareByArchive(a.entry.path, b.entry.path, data);
+  if (byArch !== 0) {
+    return byArch;
+  }
+  const byFav = compareByFavorite(a.entry, b.entry);
+  if (byFav !== 0) {
+    return byFav;
+  }
   const byLast = compareByLastFolder(
     folderLabel(a.entry),
     folderLabel(b.entry),
@@ -155,13 +263,49 @@ function nodeLastFolderRank(
   return lastFolderRank(node.name, data);
 }
 
-export function buildAzFolderTree(
+function sortAzNodes(
+  nodes: AzNode[],
+  options: { sort: boolean; data?: FoldersFile }
+): void {
+  const { sort, data } = options;
+  if (sort) {
+    nodes.sort((a, b) => {
+      const aRank = nodeLastFolderRank(a, data);
+      const bRank = nodeLastFolderRank(b, data);
+      const aLast = aRank >= 0;
+      const bLast = bRank >= 0;
+      if (aLast !== bLast) {
+        return aLast ? 1 : -1;
+      }
+      if (aLast && bLast && aRank !== bRank) {
+        return aRank - bRank;
+      }
+      return compareText(a.name, b.name);
+    });
+    return;
+  }
+  if (data) {
+    nodes.sort((a, b) => {
+      const aRank = nodeLastFolderRank(a, data);
+      const bRank = nodeLastFolderRank(b, data);
+      const aLast = aRank >= 0;
+      const bLast = bRank >= 0;
+      if (aLast !== bLast) {
+        return aLast ? 1 : -1;
+      }
+      if (aLast && bLast && aRank !== bRank) {
+        return aRank - bRank;
+      }
+      return 0;
+    });
+  }
+}
+
+function buildAzFolderTreePartition(
   items: AzFolderRef[],
-  options: { sort?: boolean; group?: boolean; data?: FoldersFile } = {}
+  options: { sort: boolean; group: boolean; data?: FoldersFile }
 ): AzNode[] {
-  const sort = options.sort !== false;
-  const group = options.group !== false;
-  const data = options.data;
+  const { sort, group, data } = options;
 
   if (!group) {
     const leaves: AzLeaf[] = items.map((item) => ({
@@ -210,34 +354,35 @@ export function buildAzFolderTree(
     });
   }
 
-  if (sort) {
-    nodes.sort((a, b) => {
-      const aRank = nodeLastFolderRank(a, data);
-      const bRank = nodeLastFolderRank(b, data);
-      const aLast = aRank >= 0;
-      const bLast = bRank >= 0;
-      if (aLast !== bLast) {
-        return aLast ? 1 : -1;
-      }
-      if (aLast && bLast && aRank !== bRank) {
-        return aRank - bRank;
-      }
-      return compareText(a.name, b.name);
-    });
-  } else if (data) {
-    nodes.sort((a, b) => {
-      const aRank = nodeLastFolderRank(a, data);
-      const bRank = nodeLastFolderRank(b, data);
-      const aLast = aRank >= 0;
-      const bLast = bRank >= 0;
-      if (aLast !== bLast) {
-        return aLast ? 1 : -1;
-      }
-      if (aLast && bLast && aRank !== bRank) {
-        return aRank - bRank;
-      }
-      return 0;
-    });
-  }
+  sortAzNodes(nodes, { sort, data });
   return nodes;
+}
+
+/**
+ * Arbre A-Z : les archives (parent dans ArchiveParents) sont regroupées
+ * séparément et placées après les dossiers actifs.
+ */
+export function buildAzFolderTree(
+  items: AzFolderRef[],
+  options: { sort?: boolean; group?: boolean; data?: FoldersFile } = {}
+): AzNode[] {
+  const sort = options.sort !== false;
+  const group = options.group !== false;
+  const data = options.data;
+
+  const regular: AzFolderRef[] = [];
+  const archived: AzFolderRef[] = [];
+  for (const item of items) {
+    if (isArchiveFolderPath(item.entry.path, data)) {
+      archived.push(item);
+    } else {
+      regular.push(item);
+    }
+  }
+
+  const partitionOpts = { sort, group, data };
+  return [
+    ...buildAzFolderTreePartition(regular, partitionOpts),
+    ...buildAzFolderTreePartition(archived, partitionOpts),
+  ];
 }

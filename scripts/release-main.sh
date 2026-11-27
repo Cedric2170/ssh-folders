@@ -41,7 +41,8 @@ if [[ "$BRANCH" != "dev" ]]; then
   exit 1
 fi
 
-if [[ -n "$(git status --porcelain)" ]]; then
+# Ignorer les non suivis (todo local, etc.) : seuls les fichiers suivis bloquent.
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   echo "Arbre de travail non propre. Commit ou stash d'abord." >&2
   git status -sb >&2
   exit 1
@@ -59,14 +60,16 @@ git fetch origin
 git checkout main
 git pull --ff-only origin main
 
-git merge --squash dev
-
-if git diff --cached --quiet; then
+# Remplace l'arbre de main par celui de dev (1 commit), sans merge.
+# Les historiques n'ont souvent plus d'ancêtre commun après des squash
+# successifs : `merge --squash` échoue ou produit des conflits add/add.
+if git diff --quiet "main^{tree}" "dev^{tree}"; then
   echo "Rien à squash : main a déjà le même contenu que dev."
   git checkout dev
   exit 0
 fi
 
+git read-tree -u --reset "dev^{tree}"
 git commit -m "$MSG"
 git push origin main
 

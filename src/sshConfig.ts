@@ -138,6 +138,55 @@ export function isActiveRemoteFolder(alias: string, folderPath: string): boolean
   );
 }
 
+/** Chemin du dossier distant ouvert pour cet alias dans la fenêtre courante. */
+export function activeRemotePathForHost(alias: string): string | undefined {
+  return activeRemoteFolders().find((item) => sameHost(item.host, alias))?.path;
+}
+
+/** Vrai si `candidate` est le chemin ouvert ou un parent d'un chemin connu sur l'hôte. */
+export function defaultFolderKnownOnHost(
+  candidate: string,
+  openPath: string | undefined,
+  knownPaths: readonly string[] = []
+): boolean {
+  const root = normalizeRemotePath(candidate).replace(/\/+$/, "") || "/";
+  const isUnder = (raw: string): boolean => {
+    const path = normalizeRemotePath(raw).replace(/\/+$/, "") || "/";
+    return path === root || path.startsWith(`${root}/`);
+  };
+  if (openPath?.trim() && isUnder(openPath.trim())) {
+    return true;
+  }
+  return knownPaths.some((item) => item.trim() && isUnder(item.trim()));
+}
+
+/**
+ * Chemin proposé à l'ajout (`+`) :
+ * - `DefaultFolder` vide → dossier IDE ouvert pour l'hôte ;
+ * - `DefaultFolder` connu sur l'hôte (ouvert ou déjà enregistré dessous) → DefaultFolder ;
+ * - sinon → dossier IDE ouvert.
+ * Le champ reste éditable librement.
+ */
+export function suggestedRemoteAddPath(
+  defaultFolder: string | undefined,
+  openPath: string | undefined,
+  knownPaths: readonly string[] = []
+): string {
+  const open = openPath?.trim()
+    ? normalizeRemotePath(openPath.trim())
+    : "";
+  const fallback = defaultFolder?.trim()
+    ? normalizeRemotePath(defaultFolder.trim())
+    : "";
+  if (!fallback) {
+    return open;
+  }
+  if (defaultFolderKnownOnHost(fallback, open || undefined, knownPaths)) {
+    return fallback;
+  }
+  return open;
+}
+
 function globToRegExp(pattern: string): RegExp {
   const escaped = pattern
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")

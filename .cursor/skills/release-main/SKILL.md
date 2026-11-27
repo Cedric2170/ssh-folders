@@ -45,7 +45,7 @@ npm run release:main -- --tag
 npm run release:main -- --publish
 ```
 
-Script : `scripts/release-main.sh`.
+Script : `scripts/release-main.sh` (remplace l’arbre de `main` par celui de `dev` via `read-tree`, pas un `merge --squash` — les historiques sont souvent sans ancêtre commun).
 
 ## Workflow agent
 
@@ -55,11 +55,32 @@ Progression:
 - [ ] 2) Aligner package.json si besoin (avec accord) + changelog / What's New
 - [ ] 3) Vérifier branche dev + git status propre
 - [ ] 4) npm run release:main -- --tag  (ou --publish si demandé)
-- [ ] 5) Rapporter commit main, tag vX.Y.Z, branche courante (dev)
+- [ ] 5) Nettoyer todo.md (voir section ci-dessous)
+- [ ] 6) Rapporter commit main, tag vX.Y.Z, branche courante (dev)
 ```
+
+## Nettoyage `todo.md`
+
+Fichier **local** (gitignore). Ne pas le committer.
+
+### Contenu attendu (entre deux releases, sur `dev`)
+
+Ne garder que :
+
+1. **Fait depuis le dernier commit `main`** — cases `[x]` des travaux pas encore livrés sur `main`.
+2. **Pas encore fait** — cases `[ ]` ou items ouverts sans case.
+
+**Conserver les titres de section** existants (`# Fonctionnalités`, `# Tri`, `# Color`, etc.). Ne pas aplatir le fichier en une seule liste. Retirer une section seulement si elle devient vide. Retirer les `[x]` déjà inclus dans la dernière release `main` (changelog / What's New de cette version).
+
+### Après un `release:main` réussi
+
+1. Supprimer toutes les cases `[x]` (désormais livrées avec `vX.Y.Z`).
+2. Conserver les items non faits **et leurs titres de section**.
+3. Retirer les sections devenues vides.
 
 ## Après release
 
 - Continuer sur `dev`
+- Nettoyer `todo.md` comme ci-dessus
 - Publication Marketplace : `npm run publish:vscode` puis `npm run publish:openvsx` (si pas déjà `--publish`)
 - Ne pas force-push `main` ni squash `dev`

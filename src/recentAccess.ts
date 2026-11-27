@@ -124,23 +124,23 @@ export function formatRelativeAccess(at: number, now = Date.now()): string {
   const diff = Math.max(0, now - at);
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1) {
-    return "à l'instant";
+    return vscode.l10n.t("just now");
   }
   if (minutes < 60) {
-    return `il y a ${minutes} min`;
+    return vscode.l10n.t("{0} min ago", minutes);
   }
   const hours = Math.floor(minutes / 60);
   if (hours < 24) {
-    return `il y a ${hours} h`;
+    return vscode.l10n.t("{0} h ago", hours);
   }
   const days = Math.floor(hours / 24);
   if (days === 1) {
-    return "hier";
+    return vscode.l10n.t("yesterday");
   }
   if (days < 7) {
-    return `il y a ${days} j`;
+    return vscode.l10n.t("{0} d ago", days);
   }
-  return new Date(at).toLocaleDateString("fr-CH", {
+  return new Date(at).toLocaleDateString(vscode.env.language, {
     day: "numeric",
     month: "short",
   });

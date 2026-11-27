@@ -8,6 +8,10 @@ import { sameHost } from "./sshConfig";
 export interface FolderEntry {
   label?: string;
   path: string;
+  /** Favori : affiché en tête de liste (et aussi dans la liste normale en vue A-Z). */
+  favorite?: boolean;
+  /** Couleur de palette pour l'icône (nom du catalogue). */
+  color?: IconPaletteName;
 }
 
 /** Dossier local du poste de base, rangé sous un serveur virtuel. */
@@ -15,6 +19,8 @@ export interface LocalFolderEntry {
   VirtualHost: string;
   path: string;
   label?: string;
+  favorite?: boolean;
+  color?: IconPaletteName;
 }
 
 export const DEFAULT_RECENT_LIMIT = 20;
@@ -22,17 +28,47 @@ export const MAX_RECENT_LIMIT = 100;
 
 /**
  * Clés écrites dans `defaults` lorsqu'elles manquent dans ssh-folders.json.
- * Chaque nouveau réglage qui a une valeur par défaut s'ajoute ici, dans le schéma et dans l'exemple.
- * Une clé sans défaut sûr, comme DefaultFolder, ne figure pas dans ce catalogue.
+ * Chaque nouveau réglage s'ajoute ici, dans le schéma et dans l'exemple.
+ * `DefaultFolder: ""` = placeholder documentaire (ignoré à l'exécution tant que vide).
  */
 export const DEFAULT_SETTINGS = {
+  DefaultFolder: "",
   RecentLimit: DEFAULT_RECENT_LIMIT,
   ActiveColor: "green",
   SortAlphabetical: true,
   GroupSameName: true,
   HiddenHosts: [] as string[],
+  FavoriteHosts: [] as string[],
   LastFolder: ["Projects", "_old"] as string[],
+  ArchiveParents: ["_old", "old"] as string[],
+  /** Position des VirtualHost dans la vue par hôte : top | bottom | alphabet. */
+  VirtualHostPosition: "alphabet",
+  HostIconColors: {} as Record<string, IconPaletteName>,
+  IconColorFilters: [] as IconColorFilter[],
 } as const;
+
+export type IconColorFilterScope = "host" | "folder";
+
+export interface IconColorFilter {
+  scope: IconColorFilterScope;
+  color: IconPaletteName;
+  name?: string;
+  path?: string;
+  favorite?: boolean;
+  archive?: boolean;
+}
+
+export const VIRTUAL_HOST_POSITIONS = ["alphabet", "top", "bottom"] as const;
+export type VirtualHostPosition = (typeof VIRTUAL_HOST_POSITIONS)[number];
+
+/** Proposition initiale si `local` est absent du JSON (pas si `local: []` explicite). */
+export const DEFAULT_LOCAL_SEED: LocalFolderEntry[] = [
+  {
+    VirtualHost: "local",
+    path: "~/Documents",
+    label: "Documents",
+  },
+];
 
 export const ACTIVE_COLOR_NAMES = [
   "green",
@@ -42,6 +78,32 @@ export const ACTIVE_COLOR_NAMES = [
   "purple",
   "yellow",
 ] as const;
+
+/** Noms de palette pour les icônes (JSON). `grey` ≈ archive au repos ; l’archive système prime toujours. */
+export const ICON_PALETTE_NAMES = [
+  "green",
+  "blue",
+  "orange",
+  "red",
+  "purple",
+  "yellow",
+  "cyan",
+  "teal",
+  "magenta",
+  "pink",
+  "brown",
+  "grey",
+  "lime",
+  "indigo",
+  "gold",
+  "coral",
+  "olive",
+  "navy",
+  "rose",
+  "amber",
+] as const;
+
+export type IconPaletteName = (typeof ICON_PALETTE_NAMES)[number];
 
 export type ActiveColorName = (typeof ACTIVE_COLOR_NAMES)[number];
 
@@ -63,6 +125,33 @@ const ACTIVE_COLOR_ALIASES: Record<string, ActiveColorName> = {
   jaune: "yellow",
 };
 
+const ICON_PALETTE_ALIASES: Record<string, IconPaletteName> = {
+  ...ACTIVE_COLOR_ALIASES,
+  cyan: "cyan",
+  teal: "teal",
+  turquoise: "teal",
+  magenta: "magenta",
+  pink: "pink",
+  rose: "rose",
+  brown: "brown",
+  marron: "brown",
+  grey: "grey",
+  gray: "grey",
+  gris: "grey",
+  lime: "lime",
+  citron: "lime",
+  indigo: "indigo",
+  gold: "gold",
+  or: "gold",
+  coral: "coral",
+  corail: "coral",
+  olive: "olive",
+  navy: "navy",
+  marine: "navy",
+  amber: "amber",
+  ambre: "amber",
+};
+
 export interface FolderDefaults {
   DefaultFolder?: string;
   RecentLimit?: number;
@@ -70,7 +159,15 @@ export interface FolderDefaults {
   SortAlphabetical?: boolean;
   GroupSameName?: boolean;
   HiddenHosts?: string[];
+  /** Alias Host / VirtualHost épinglés en tête de la vue par hôte. */
+  FavoriteHosts?: string[];
   LastFolder?: string[];
+  /** Noms de dossier parent qui marquent une entrée comme archive (grisée, fin de liste). */
+  ArchiveParents?: string[];
+  /** Position des VirtualHost vs hôtes SSH dans la vue par hôte. */
+  VirtualHostPosition?: VirtualHostPosition;
+  HostIconColors?: Record<string, IconPaletteName>;
+  IconColorFilters?: IconColorFilter[];
   [key: string]: unknown;
 }
 
@@ -155,10 +252,14 @@ export function folderLabel(entry: FolderEntry | LocalFolderEntry): string {
 export function assertRemotePath(remotePath: string): string {
   const trimmed = remotePath.trim();
   if (!trimmed.startsWith("/")) {
-    throw new Error("Le chemin distant doit être absolu (commencer par /).");
+    throw new Error(
+      vscode.l10n.t("Remote path must be absolute (start with /).")
+    );
   }
   if (trimmed.includes("~")) {
-    throw new Error("Le chemin distant ne doit pas contenir ~.");
+    throw new Error(
+      vscode.l10n.t("Remote path must not contain ~.")
+    );
   }
   return trimmed;
 }
@@ -167,12 +268,14 @@ export function assertRemotePath(remotePath: string): string {
 export function assertLocalPath(localPath: string): string {
   const trimmed = localPath.trim();
   if (!trimmed) {
-    throw new Error("Le chemin local ne peut pas être vide.");
+    throw new Error(vscode.l10n.t("Local path cannot be empty."));
   }
   const expanded = expandHome(trimmed);
   if (!path.isAbsolute(expanded)) {
     throw new Error(
-      "Le chemin local doit être absolu ou commencer par ~ (ex. ~/Documents/Projets)."
+      vscode.l10n.t(
+        "Local path must be absolute or start with ~ (e.g. ~/Documents/Projects)."
+      )
     );
   }
   return trimmed;
@@ -378,8 +481,10 @@ function normalizeDefaults(raw: unknown): FolderDefaults | undefined {
   }
   const rec = raw as Record<string, unknown>;
   const defaults: FolderDefaults = { ...rec };
-  if (typeof rec.DefaultFolder === "string" && rec.DefaultFolder.trim()) {
-    defaults.DefaultFolder = assertRemotePath(rec.DefaultFolder);
+  if (typeof rec.DefaultFolder === "string") {
+    const trimmed = rec.DefaultFolder.trim();
+    // Chaîne vide : clé conservée dans le JSON (documentation), ignorée à l'usage.
+    defaults.DefaultFolder = trimmed ? assertRemotePath(trimmed) : "";
   } else {
     delete defaults.DefaultFolder;
   }
@@ -413,12 +518,54 @@ function normalizeDefaults(raw: unknown): FolderDefaults | undefined {
   } else {
     delete defaults.HiddenHosts;
   }
+  if (Array.isArray(rec.FavoriteHosts)) {
+    defaults.FavoriteHosts = rec.FavoriteHosts.filter(
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    ).map((item) => item.trim());
+  } else {
+    delete defaults.FavoriteHosts;
+  }
   if (Array.isArray(rec.LastFolder)) {
     defaults.LastFolder = rec.LastFolder.filter(
       (item): item is string => typeof item === "string" && item.trim().length > 0
     ).map((item) => item.trim());
   } else {
     delete defaults.LastFolder;
+  }
+  if (Array.isArray(rec.ArchiveParents)) {
+    defaults.ArchiveParents = rec.ArchiveParents.filter(
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    ).map((item) => item.trim());
+  } else {
+    delete defaults.ArchiveParents;
+  }
+  if (
+    typeof rec.VirtualHostPosition === "string" &&
+    (VIRTUAL_HOST_POSITIONS as readonly string[]).includes(
+      rec.VirtualHostPosition
+    )
+  ) {
+    defaults.VirtualHostPosition = rec.VirtualHostPosition as VirtualHostPosition;
+  } else {
+    delete defaults.VirtualHostPosition;
+  }
+  const hostColors = normalizeHostIconColors(rec.HostIconColors);
+  if (hostColors) {
+    defaults.HostIconColors = hostColors;
+  } else {
+    delete defaults.HostIconColors;
+  }
+  if (Array.isArray(rec.IconColorFilters)) {
+    const filters = rec.IconColorFilters.map((item) =>
+      normalizeIconColorFilter(item)
+    ).filter((item): item is IconColorFilter => item !== undefined);
+    if (filters.length > 0) {
+      defaults.IconColorFilters = filters;
+    } else {
+      delete defaults.IconColorFilters;
+    }
+  } else {
+    delete defaults.IconColorFilters;
   }
   return Object.keys(defaults).length > 0 ? defaults : undefined;
 }
@@ -451,6 +598,90 @@ export function parseActiveColor(raw: unknown): ActiveColor | undefined {
   return { kind: "hex", hex };
 }
 
+function iconColorFilterHasMatcher(filter: IconColorFilter): boolean {
+  return (
+    filter.name !== undefined ||
+    filter.path !== undefined ||
+    filter.favorite === true ||
+    filter.archive === true
+  );
+}
+
+function isIconColorFilterScope(value: unknown): value is IconColorFilterScope {
+  return value === "host" || value === "folder";
+}
+
+export function normalizeIconColorFilter(
+  raw: unknown
+): IconColorFilter | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const rec = raw as Record<string, unknown>;
+  if (!isIconColorFilterScope(rec.scope)) {
+    return undefined;
+  }
+  const color = parseIconPaletteColor(rec.color);
+  if (!color) {
+    return undefined;
+  }
+  const filter: IconColorFilter = { scope: rec.scope, color };
+  if (typeof rec.name === "string" && rec.name.trim()) {
+    filter.name = rec.name.trim();
+  }
+  if (typeof rec.path === "string" && rec.path.trim()) {
+    filter.path = rec.path.trim();
+  }
+  if (rec.favorite === true) {
+    filter.favorite = true;
+  }
+  if (rec.archive === true) {
+    filter.archive = true;
+  }
+  if (!iconColorFilterHasMatcher(filter)) {
+    return undefined;
+  }
+  if (filter.scope === "host" && (filter.archive === true || filter.path)) {
+    return undefined;
+  }
+  return filter;
+}
+
+export function normalizeHostIconColors(
+  raw: unknown
+): Record<string, IconPaletteName> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const out: Record<string, IconPaletteName> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const alias = key.trim();
+    if (!alias || typeof value !== "string") {
+      continue;
+    }
+    const parsed = parseIconPaletteColor(value);
+    if (parsed) {
+      out[alias] = parsed;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+export function parseIconPaletteColor(raw: unknown): IconPaletteName | undefined {
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const text = raw.trim().toLowerCase();
+  const alias = ICON_PALETTE_ALIASES[text];
+  if (alias) {
+    return alias;
+  }
+  if ((ICON_PALETTE_NAMES as readonly string[]).includes(text)) {
+    return text as IconPaletteName;
+  }
+  return undefined;
+}
+
 /** Vert si la clé est absente ou illisible. */
 export function activeColorOf(data: FoldersFile | undefined): ActiveColor {
   return (
@@ -471,7 +702,8 @@ function rawDefaultsRecord(raw: unknown): Record<string, unknown> {
 /** Ajoute les clés du catalogue absentes du fichier. Une clé déjà présente est conservée. */
 export function applyMissingDefaults(
   data: FoldersFile,
-  rawDefaults: unknown
+  rawDefaults: unknown,
+  options?: { seedDefaultLocal?: boolean }
 ): { data: FoldersFile; added: boolean } {
   const raw = rawDefaultsRecord(rawDefaults);
   const defaults: FolderDefaults = { ...(data.defaults ?? {}) };
@@ -480,14 +712,28 @@ export function applyMissingDefaults(
     if (Object.prototype.hasOwnProperty.call(raw, key)) {
       continue;
     }
-    defaults[key] = Array.isArray(value) ? [...value] : value;
+    defaults[key] = Array.isArray(value)
+      ? [...value]
+      : typeof value === "object" && value !== null
+        ? { ...(value as Record<string, unknown>) }
+        : value;
+    added = true;
+  }
+  // `local` toujours présent à l'écriture. Seed Documents seulement si la clé
+  // manquait entièrement dans le fichier d'origine (pas si `local: []`).
+  let local = data.local;
+  if (!Array.isArray(local)) {
+    local =
+      options?.seedDefaultLocal === true
+        ? DEFAULT_LOCAL_SEED.map((entry) => ({ ...entry }))
+        : [];
     added = true;
   }
   if (!added) {
     return { data, added: false };
   }
   return {
-    data: { ...data, defaults },
+    data: { ...data, defaults, local },
     added: true,
   };
 }
@@ -512,10 +758,17 @@ export function normalizeFileWithMeta(raw: unknown): {
       if (!Array.isArray(list)) {
         continue;
       }
-      folders[host] = list.filter(isFolderEntry).map((entry) => ({
-        path: entry.path,
-        ...(entry.label ? { label: entry.label } : {}),
-      }));
+      folders[host] = list.filter(isFolderEntry).map((entry) => {
+        const color = parseIconPaletteColor(
+          (entry as FolderEntry & { color?: string }).color
+        );
+        return {
+          path: entry.path,
+          ...(entry.label ? { label: entry.label } : {}),
+          ...(entry.favorite === true ? { favorite: true } : {}),
+          ...(color ? { color } : {}),
+        };
+      });
     }
   }
   const localRaw = source.local;
@@ -526,10 +779,15 @@ export function normalizeFileWithMeta(raw: unknown): {
         continue;
       }
       try {
+        const color = parseIconPaletteColor(
+          (item as LocalFolderEntry & { color?: string }).color
+        );
         local.push({
           VirtualHost: item.VirtualHost.trim(),
           path: assertLocalPath(item.path),
           ...(item.label?.trim() ? { label: item.label.trim() } : {}),
+          ...(item.favorite === true ? { favorite: true } : {}),
+          ...(color ? { color } : {}),
         });
       } catch {
         // Entrée locale illisible : ignorée.
@@ -596,7 +854,9 @@ async function loadFoldersFile(filePath: string): Promise<FoldersFile> {
   try {
     parsed = JSON.parse(content);
   } catch {
-    throw new Error(`Fichier JSON invalide : ${filePath}`);
+    throw new Error(
+      vscode.l10n.t("Invalid JSON file: {0}", filePath)
+    );
   }
 
   const { data, repairedPaths } = normalizeFileWithMeta(parsed);
@@ -604,7 +864,13 @@ async function loadFoldersFile(filePath: string): Promise<FoldersFile> {
     parsed && typeof parsed === "object"
       ? (parsed as FoldersFile).defaults
       : undefined;
-  const merged = applyMissingDefaults(data, rawDefaults);
+  const rawHadLocal =
+    parsed !== null &&
+    typeof parsed === "object" &&
+    Object.prototype.hasOwnProperty.call(parsed, "local");
+  const merged = applyMissingDefaults(data, rawDefaults, {
+    seedDefaultLocal: !rawHadLocal,
+  });
   foldersCache = { path: filePath, data: merged.data };
   if (merged.added || (repairedPaths && !isDevMode())) {
     await writeFoldersFile(merged.data);
@@ -636,8 +902,8 @@ export async function writeFoldersFile(data: FoldersFile): Promise<void> {
   const payload = `${JSON.stringify(
     {
       $schema: RELATIVE_SCHEMA,
-      ...(complete.defaults ? { defaults: complete.defaults } : {}),
-      ...(local.length > 0 ? { local } : {}),
+      defaults: complete.defaults ?? { ...DEFAULT_SETTINGS },
+      local,
       folders: complete.folders,
     },
     null,
@@ -648,7 +914,8 @@ export async function writeFoldersFile(data: FoldersFile): Promise<void> {
 }
 
 export function defaultFolderPath(data: FoldersFile): string | undefined {
-  return data.defaults?.DefaultFolder;
+  const value = data.defaults?.DefaultFolder?.trim();
+  return value || undefined;
 }
 
 /** Vrai par défaut. `false` conserve l'ordre du fichier SSH config et du JSON. */
@@ -659,6 +926,50 @@ export function sortAlphabetical(data: FoldersFile | undefined): boolean {
 /** Vrai par défaut. `false` laisse chaque dossier séparé dans la vue A-Z. */
 export function groupSameName(data: FoldersFile | undefined): boolean {
   return data?.defaults?.GroupSameName !== false;
+}
+
+/** Position des VirtualHost dans la vue par hôte (défaut : alphabet = mélangés). */
+export function virtualHostPosition(
+  data: FoldersFile | undefined
+): VirtualHostPosition {
+  const value = data?.defaults?.VirtualHostPosition;
+  if (value === "top" || value === "bottom" || value === "alphabet") {
+    return value;
+  }
+  return DEFAULT_SETTINGS.VirtualHostPosition;
+}
+
+/**
+ * Compare deux racines hôte pour la vue par hôte.
+ * Favoris d'abord, puis VirtualHostPosition, puis tri alphabétique si activé.
+ */
+export function compareHostRoots(
+  a: { alias: string; local: boolean; favorite: boolean },
+  b: { alias: string; local: boolean; favorite: boolean },
+  data: FoldersFile | undefined
+): number {
+  if (a.favorite !== b.favorite) {
+    return a.favorite ? -1 : 1;
+  }
+  const position = virtualHostPosition(data);
+  if (position === "top" && a.local !== b.local) {
+    return Number(b.local) - Number(a.local);
+  }
+  if (position === "bottom" && a.local !== b.local) {
+    return Number(a.local) - Number(b.local);
+  }
+  if (sortAlphabetical(data)) {
+    const byName = a.alias.localeCompare(b.alias, "fr", {
+      sensitivity: "base",
+      numeric: true,
+    });
+    if (byName !== 0) {
+      return byName;
+    }
+  } else if (position === "alphabet" && a.local !== b.local) {
+    return Number(a.local) - Number(b.local);
+  }
+  return Number(a.local) - Number(b.local);
 }
 
 export function hiddenHostPatterns(data: FoldersFile | undefined): string[] {
@@ -693,7 +1004,43 @@ export function isLastFolderLabel(
   return lastFolderRank(label, data) >= 0;
 }
 
-function hostPatternMatches(pattern: string, alias: string): boolean {
+/** Noms de dossier parent considérés comme archive. Par défaut `_old` et `old`. */
+export function archiveParentNames(data: FoldersFile | undefined): string[] {
+  const list = data?.defaults?.ArchiveParents;
+  return Array.isArray(list) ? list : [...DEFAULT_SETTINGS.ArchiveParents];
+}
+
+/** Nom du dossier parent immédiat (POSIX, `~` conservé). */
+export function pathParentName(folderPath: string): string {
+  const normalized = folderPath.replace(/\\/g, "/").replace(/\/+$/, "") || "/";
+  if (normalized === "/" || normalized === "~") {
+    return "";
+  }
+  const parent = path.posix.dirname(normalized);
+  if (parent === "/" || parent === "." || parent === "") {
+    return "";
+  }
+  return path.posix.basename(parent);
+}
+
+/**
+ * Vrai si le dossier parent immédiat figure dans `defaults.ArchiveParents`
+ * (comparaison sans casse). Ex. `/opt/docker/projects/_old/legacy`.
+ */
+export function isArchiveFolderPath(
+  folderPath: string,
+  data: FoldersFile | undefined
+): boolean {
+  const parent = pathParentName(folderPath);
+  if (!parent) {
+    return false;
+  }
+  return archiveParentNames(data).some(
+    (name) => name.localeCompare(parent, "fr", { sensitivity: "base" }) === 0
+  );
+}
+
+export function hostPatternMatches(pattern: string, alias: string): boolean {
   const trimmed = pattern.trim();
   if (!trimmed) {
     return false;
@@ -716,6 +1063,25 @@ export function isHostHidden(
   return hiddenHostPatterns(data).some((pattern) =>
     hostPatternMatches(pattern, alias)
   );
+}
+
+export function favoriteHostNames(data: FoldersFile | undefined): string[] {
+  const list = data?.defaults?.FavoriteHosts;
+  return Array.isArray(list) ? list : [...DEFAULT_SETTINGS.FavoriteHosts];
+}
+
+/** Vrai si l'alias figure dans `defaults.FavoriteHosts` (sans casse). */
+export function isFavoriteHost(
+  alias: string,
+  data: FoldersFile | undefined
+): boolean {
+  return favoriteHostNames(data).some((name) => sameHost(name, alias));
+}
+
+export function isFavoriteFolder(
+  entry: FolderEntry | LocalFolderEntry | undefined
+): boolean {
+  return entry?.favorite === true;
 }
 
 export function visibleHostAliases(
@@ -759,7 +1125,9 @@ export async function addFolderEntry(
   const data = await readFoldersFile();
   const key = existingHostKey(data, host) ?? host;
   if (foldersForHost(data, key).some((item) => item.path === entry.path)) {
-    throw new Error("Ce dossier est déjà enregistré pour cet hôte.");
+    throw new Error(
+      vscode.l10n.t("This folder is already registered for this host.")
+    );
   }
   const list = data.folders[key] ?? [];
   list.push(entry);
@@ -779,7 +1147,9 @@ export async function addLocalFolderEntry(
       sameLocalPath(item.path, pathValue)
     )
   ) {
-    throw new Error("Ce dossier local est déjà enregistré pour ce groupe.");
+    throw new Error(
+      vscode.l10n.t("This local folder is already registered for this group.")
+    );
   }
   const list = data.local ?? [];
   list.push({
@@ -801,7 +1171,9 @@ export async function renameFolderEntry(
   const list = key ? data.folders[key] ?? [] : [];
   const entry = list.find((item) => item.path === remotePath);
   if (!key || !entry) {
-    throw new Error("Dossier introuvable dans la configuration.");
+    throw new Error(
+      vscode.l10n.t("Folder not found in configuration.")
+    );
   }
   const trimmed = label.trim();
   if (trimmed) {
@@ -824,7 +1196,9 @@ export async function renameLocalFolderEntry(
       sameLocalPath(item.path, localPath)
   );
   if (!entry) {
-    throw new Error("Dossier local introuvable dans la configuration.");
+    throw new Error(
+      vscode.l10n.t("Local folder not found in configuration.")
+    );
   }
   const trimmed = label.trim();
   if (trimmed) {
@@ -867,10 +1241,81 @@ export async function removeLocalFolderEntry(
         sameLocalPath(item.path, localPath)
       )
   );
-  if (data.local.length === 0) {
-    delete data.local;
+  // Conserve `local: []` pour ne pas re-semer Documents au prochain chargement.
+  await writeFoldersFile(data);
+}
+
+/** Bascule `favorite` sur un dossier distant. Retourne le nouvel état. */
+export async function toggleFolderFavorite(
+  host: string,
+  remotePath: string
+): Promise<boolean> {
+  const data = await readFoldersFile();
+  const key = existingHostKey(data, host);
+  const entry = key
+    ? (data.folders[key] ?? []).find((item) => item.path === remotePath)
+    : undefined;
+  if (!key || !entry) {
+    throw new Error(
+      vscode.l10n.t("Folder not found in configuration.")
+    );
+  }
+  const next = entry.favorite !== true;
+  if (next) {
+    entry.favorite = true;
+  } else {
+    delete entry.favorite;
   }
   await writeFoldersFile(data);
+  return next;
+}
+
+/** Bascule `favorite` sur un dossier local. Retourne le nouvel état. */
+export async function toggleLocalFolderFavorite(
+  virtualHost: string,
+  localPath: string
+): Promise<boolean> {
+  const data = await readFoldersFile();
+  const entry = data.local?.find(
+    (item) =>
+      sameHost(item.VirtualHost, virtualHost) &&
+      sameLocalPath(item.path, localPath)
+  );
+  if (!entry) {
+    throw new Error(
+      vscode.l10n.t("Local folder not found in configuration.")
+    );
+  }
+  const next = entry.favorite !== true;
+  if (next) {
+    entry.favorite = true;
+  } else {
+    delete entry.favorite;
+  }
+  await writeFoldersFile(data);
+  return next;
+}
+
+/** Bascule un alias dans `defaults.FavoriteHosts`. Retourne le nouvel état. */
+export async function toggleHostFavorite(alias: string): Promise<boolean> {
+  const data = await readFoldersFile();
+  const defaults: FolderDefaults = { ...(data.defaults ?? {}) };
+  const current = Array.isArray(defaults.FavoriteHosts)
+    ? [...defaults.FavoriteHosts]
+    : [];
+  const index = current.findIndex((name) => sameHost(name, alias));
+  let next: boolean;
+  if (index >= 0) {
+    current.splice(index, 1);
+    next = false;
+  } else {
+    current.push(alias);
+    next = true;
+  }
+  defaults.FavoriteHosts = current;
+  data.defaults = defaults;
+  await writeFoldersFile(data);
+  return next;
 }
 
 async function seedFoldersFileFromExample(filePath: string): Promise<void> {

@@ -1,8 +1,8 @@
 {
   "name": "ssh-folders",
-  "displayName": "SSH - Folders",
-  "description": "Liste les hôtes SSH et des dossiers distants favoris. Remote-SSH gère la connexion.",
-  "version": "0.3.0",
+  "displayName": "%sshFolders.displayName%",
+  "description": "%sshFolders.description%",
+  "version": "0.3.1",
   "publisher": "cedric217",
   "author": "Cédric",
   "license": "SEE LICENSE IN LICENSE",
@@ -30,6 +30,7 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
+  "l10n": "./l10n",
   "extensionKind": [
     "ui"
   ],
@@ -38,7 +39,7 @@
       "activitybar": [
         {
           "id": "sshFoldersContainer",
-          "title": "SSH - Folders",
+          "title": "%sshFolders.viewsContainer.title%",
           "icon": "media/ssh-folders.svg"
         }
       ]
@@ -47,7 +48,7 @@
       "sshFoldersContainer": [
         {
           "id": "sshFolders",
-          "name": "SSH - Folders",
+          "name": "%sshFolders.view.name%",
           "icon": "media/ssh-folders.svg"
         }
       ]
@@ -55,82 +56,87 @@
     "viewsWelcome": [
       {
         "view": "sshFolders",
-        "contents": "Aucun hôte trouvé dans le fichier SSH config.\n[Ouvrir le fichier SSH config](command:sshFolders.openSshConfig)",
+        "contents": "%sshFolders.viewsWelcome.byHost%",
         "when": "sshFolders.view == byHost"
       },
       {
         "view": "sshFolders",
-        "contents": "Aucun dossier favori.\n[Ajouter un dossier](command:sshFolders.addFolder)",
+        "contents": "%sshFolders.viewsWelcome.byFolder%",
         "when": "sshFolders.view == byFolder"
       },
       {
         "view": "sshFolders",
-        "contents": "Aucune connexion récente.\nOuvre un hôte ou un dossier pour le voir ici.",
+        "contents": "%sshFolders.viewsWelcome.recent%",
         "when": "sshFolders.view == recent"
       }
     ],
     "commands": [
       {
         "command": "sshFolders.showByFolder",
-        "title": "Afficher par dossier (A-Z)",
-        "category": "SSH - Folders",
+        "title": "%sshFolders.command.showByFolder%",
+        "category": "%sshFolders.command.category%",
         "icon": "$(sort-precedence)"
       },
       {
         "command": "sshFolders.showByRecent",
-        "title": "Afficher les dernières connexions",
-        "category": "SSH - Folders",
+        "title": "%sshFolders.command.showByRecent%",
+        "category": "%sshFolders.command.category%",
         "icon": "$(history)"
       },
       {
         "command": "sshFolders.showByHost",
-        "title": "Afficher par hôte",
-        "category": "SSH - Folders",
+        "title": "%sshFolders.command.showByHost%",
+        "category": "%sshFolders.command.category%",
         "icon": "$(list-tree)"
       },
       {
         "command": "sshFolders.refresh",
-        "title": "SSH - Folders: Actualiser",
+        "title": "%sshFolders.command.refresh%",
         "icon": "$(refresh)"
       },
       {
         "command": "sshFolders.addFolder",
-        "title": "SSH - Folders: Ajouter un dossier",
+        "title": "%sshFolders.command.addFolder%",
         "icon": "$(add)"
       },
       {
         "command": "sshFolders.renameFolder",
-        "title": "SSH - Folders: Renommer le dossier"
+        "title": "%sshFolders.command.renameFolder%"
       },
       {
         "command": "sshFolders.removeFolder",
-        "title": "SSH - Folders: Supprimer le dossier"
+        "title": "%sshFolders.command.removeFolder%"
+      },
+      {
+        "command": "sshFolders.toggleFavorite",
+        "title": "%sshFolders.command.toggleFavorite%",
+        "icon": "$(star)"
       },
       {
         "command": "sshFolders.removeRecent",
-        "title": "Retirer des derniers accès",
-        "category": "SSH - Folders",
+        "title": "%sshFolders.command.removeRecent%",
+        "category": "%sshFolders.command.category%",
         "icon": "$(remove)"
       },
       {
         "command": "sshFolders.openFoldersConfig",
-        "title": "SSH - Folders: Ouvrir la config des dossiers",
+        "title": "%sshFolders.command.openFoldersConfig%",
         "icon": "$(json)"
       },
       {
         "command": "sshFolders.openSshConfig",
-        "title": "SSH - Folders: Ouvrir le fichier SSH config"
+        "title": "%sshFolders.command.openSshConfig%"
       },
       {
         "command": "sshFolders.openInCurrentWindow",
-        "title": "Ouvrir dans la même fenêtre",
-        "category": "SSH - Folders",
+        "title": "%sshFolders.command.openInCurrentWindow%",
+        "category": "%sshFolders.command.category%",
         "icon": "$(window)"
       },
       {
         "command": "sshFolders.openInNewWindow",
-        "title": "Ouvrir dans une nouvelle fenêtre",
-        "category": "SSH - Folders",
+        "title": "%sshFolders.command.openInNewWindow%",
+        "category": "%sshFolders.command.category%",
         "icon": "$(empty-window)"
       }
     ],
@@ -209,14 +215,24 @@
           "group": "0_connect@2"
         },
         {
+          "command": "sshFolders.toggleFavorite",
+          "when": "view == sshFolders && (viewItem == host || viewItem == localHost || viewItem == folder || viewItem == localFolder)",
+          "group": "inline@4"
+        },
+        {
+          "command": "sshFolders.toggleFavorite",
+          "when": "view == sshFolders && (viewItem == host || viewItem == localHost || viewItem == folder || viewItem == localFolder)",
+          "group": "1_edit@0"
+        },
+        {
           "command": "sshFolders.renameFolder",
           "when": "view == sshFolders && (viewItem == folder || viewItem == localFolder)",
-          "group": "1_edit"
+          "group": "1_edit@1"
         },
         {
           "command": "sshFolders.removeFolder",
           "when": "view == sshFolders && (viewItem == folder || viewItem == localFolder)",
-          "group": "1_edit"
+          "group": "1_edit@2"
         }
       ],
       "commandPalette": [
@@ -231,16 +247,20 @@
         {
           "command": "sshFolders.removeRecent",
           "when": "false"
+        },
+        {
+          "command": "sshFolders.toggleFavorite",
+          "when": "false"
         }
       ]
     },
     "configuration": {
-      "title": "SSH - Folders",
+      "title": "%sshFolders.config.title%",
       "properties": {
         "sshFolders.configPath": {
           "type": "string",
           "default": "",
-          "description": "Chemin du fichier JSON (dossiers favoris et paramètres defaults). Vide = ~/.ssh/extensions/ssh-folders.json. Les réglages métier ne sont pas dans les Settings VS Code : éditez ce fichier (commande « Ouvrir la config des dossiers »)."
+          "description": "%sshFolders.config.configPath%"
         },
         "sshFolders.view": {
           "type": "string",
@@ -250,19 +270,19 @@
             "recent"
           ],
           "enumDescriptions": [
-            "Grouper les dossiers sous chaque hôte SSH. Hôtes et dossiers en ordre alphabétique, sauf si defaults.SortAlphabetical vaut false.",
-            "Liste de tous les dossiers, regroupés par nom. Ordre alphabétique, sauf si defaults.SortAlphabetical vaut false.",
-            "Les derniers accès, du plus récent au plus ancien, quelle que soit la valeur de SortAlphabetical"
+            "%sshFolders.config.view.byHost%",
+            "%sshFolders.config.view.byFolder%",
+            "%sshFolders.config.view.recent%"
           ],
           "default": "byHost",
-          "description": "Mode d'affichage de la vue SSH - Folders"
+          "description": "%sshFolders.config.view%"
         }
       }
     },
     "colors": [
       {
         "id": "sshFolders.activeForeground",
-        "description": "Connexion SSH et dossier distant ouverts dans cette fenêtre.",
+        "description": "%sshFolders.color.activeForeground%",
         "defaults": {
           "dark": "#3fb950",
           "light": "#1a7f37",
@@ -284,6 +304,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
+    "l10n:export": "npx @vscode/l10n-dev export --outDir ./l10n ./src",
     "test": "npm run compile && node --require ./test/register-vscode-mock.js --test out/test/**/*.test.js",
     "dev:host": "npm run compile && printf 'real\\n' > .vscode/ssh-folders-dev.mode && cursor --extensionDevelopmentPath=\"$PWD\"",
     "dev:host:exemples": "npm run compile && printf 'sandbox\\n' > .vscode/ssh-folders-dev.mode && cursor --extensionDevelopmentPath=\"$PWD\"",
@@ -300,6 +321,7 @@
   "devDependencies": {
     "@types/node": "^20.17.0",
     "@types/vscode": "^1.85.0",
+    "@vscode/l10n-dev": "^0.0.35",
     "@vscode/vsce": "^3.6.0",
     "typescript": "^6.0.3"
   }

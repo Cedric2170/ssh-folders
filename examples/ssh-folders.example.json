@@ -6,14 +6,34 @@
     "ActiveColor": "green",
     "SortAlphabetical": true,
     "GroupSameName": true,
-    "HiddenHosts": [],
-    "LastFolder": ["Projects", "_old"]
+    "HiddenHosts": ["hide*"],
+    "FavoriteHosts": ["demo-docker", "Prod"],
+    "LastFolder": ["Projects", "_old"],
+    "ArchiveParents": ["_old", "old"],
+    "VirtualHostPosition": "top",
+    "HostIconColors": {
+      "demo-docker": "cyan",
+      "demo-web": "teal",
+      "work-prod": "navy",
+      "Prod": "orange",
+      "Dev": "lime"
+    },
+    "IconColorFilters": [
+      { "scope": "host", "name": "work-*", "color": "purple" },
+      { "scope": "host", "favorite": true, "color": "gold" },
+      { "scope": "folder", "path": "*shared*", "color": "green" },
+      { "scope": "folder", "archive": true, "color": "grey" },
+      { "scope": "folder", "favorite": true, "color": "yellow" },
+      { "scope": "folder", "path": "*_old*", "color": "grey" }
+    ]
   },
   "local": [
     {
       "VirtualHost": "Prod",
-      "path": "~/Documents/Projets",
-      "label": "Projets"
+      "path": "~/Documents/Projects",
+      "label": "Projects",
+      "favorite": true,
+      "color": "blue"
     },
     {
       "VirtualHost": "Prod",
@@ -23,7 +43,23 @@
     {
       "VirtualHost": "Dev",
       "path": "~/dev/sandbox",
-      "label": "Sandbox"
+      "label": "Sandbox",
+      "color": "magenta"
+    },
+    {
+      "VirtualHost": "Dev",
+      "path": "~/dev/_old",
+      "label": "_old"
+    },
+    {
+      "VirtualHost": "Dev",
+      "path": "~/dev/_old/archive-tool",
+      "label": "Archive-tool"
+    },
+    {
+      "VirtualHost": "Dev",
+      "path": "~/dev/_old/archive-notes",
+      "label": "Archive-notes"
     }
   ],
   "folders": {
@@ -33,25 +69,142 @@
         "label": "Projects"
       },
       {
-        "path": "/opt/docker/projects/grafana",
-        "label": "Grafana"
+        "path": "/opt/docker/projects/app-one",
+        "label": "App-one",
+        "favorite": true
       },
       {
-        "path": "/opt/docker/projects/guacamole",
-        "label": "Guacamole"
+        "path": "/opt/docker/projects/app-one-dev",
+        "label": "App-one-dev",
+        "color": "indigo"
+      },
+      {
+        "path": "/opt/docker/projects/app-two",
+        "label": "App-two"
+      },
+      {
+        "path": "/opt/docker/projects/data-shared",
+        "label": "Data-shared"
       },
       {
         "path": "/opt/docker/projects/_old",
         "label": "_old"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-api",
+        "label": "Archive-api"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-api-dev",
+        "label": "Archive-api-dev"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-web",
+        "label": "Archive-web"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-batch",
+        "label": "Archive-batch"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-reports",
+        "label": "Archive-reports"
+      },
+      {
+        "path": "/opt/docker/projects/old",
+        "label": "old"
+      },
+      {
+        "path": "/opt/docker/projects/old/retired-one",
+        "label": "Retired-one"
+      },
+      {
+        "path": "/opt/docker/projects/old/retired-two",
+        "label": "Retired-two"
       }
     ],
     "demo-web": [
       {
-        "path": "/opt/docker/projects/census-agent",
-        "label": "Census-agent"
+        "path": "/opt/docker/projects/site-one",
+        "label": "Site-one",
+        "favorite": true,
+        "color": "coral"
       },
       {
-        "path": "/etc/nginx"
+        "path": "/opt/docker/projects/site-one-dev",
+        "label": "Site-one-dev"
+      },
+      {
+        "path": "/opt/docker/projects/site-conf",
+        "label": "Site-conf",
+        "color": "olive"
+      },
+      {
+        "path": "/opt/docker/projects/files-shared",
+        "label": "Files-shared"
+      },
+      {
+        "path": "/opt/docker/projects/_old",
+        "label": "_old"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-site",
+        "label": "Archive-site"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-docs",
+        "label": "Archive-docs"
+      }
+    ],
+    "work-prod": [
+      {
+        "path": "/opt/docker/projects",
+        "label": "Projects"
+      },
+      {
+        "path": "/opt/docker/projects/app-main",
+        "label": "App-main",
+        "favorite": true
+      },
+      {
+        "path": "/opt/docker/projects/_old",
+        "label": "_old"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-main",
+        "label": "Archive-main"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-main-api",
+        "label": "Archive-main-api"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-extra",
+        "label": "Archive-extra"
+      }
+    ],
+    "work-lab": [
+      {
+        "path": "/opt/docker/projects/lab-one",
+        "label": "Lab-one"
+      },
+      {
+        "path": "/opt/docker/projects/_old",
+        "label": "_old"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-x",
+        "label": "Archive-x"
+      },
+      {
+        "path": "/opt/docker/projects/_old/archive-y",
+        "label": "Archive-y"
+      }
+    ],
+    "hide-ci": [
+      {
+        "path": "/var/ci",
+        "label": "Ci"
       }
     ]
   }
